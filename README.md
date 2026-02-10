@@ -37,26 +37,25 @@ ChatPay is built around **five cooperating agents**, orchestrated through a cent
 
 ```mermaid
 flowchart TD
-    U[User (Telegram)] --> TG[Telegram Bot]
+    U[User - Telegram] --> TG[Telegram Bot]
     TG --> RQ[Redis Queue]
 
-    RQ --> W[Worker]
-    W --> SA[shopping_agent]
+    RQ --> W[Worker Process]
+    W --> SA[Shopping Agent]
 
     SA --> RA[Router Agent]
 
-    RA -->|enquiry| EA[Enquiry Agent (RAG)]
-    RA -->|cart_*| CA[Cart Agent]
+    RA -->|enquiry| EA[Enquiry Agent]
+    RA -->|cart| CA[Cart Agent]
     RA -->|payments| PA[Payments Agent]
     RA -->|chitchat| CHA[Chitchat Agent]
 
-    EA --> DB[(MongoDB)]
+    EA --> DB[MongoDB]
     CA --> DB
     PA --> DB
 
-    SA --> TA[Telemetry & Formatting Agent]
-    TA -->|events + tokens| DB
-
+    SA --> TA[Telemetry and Formatter]
+    TA --> DB
     TA --> TG
 ```
 
