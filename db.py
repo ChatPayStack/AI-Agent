@@ -154,16 +154,29 @@ def _business_db_name(business_id: str) -> str:
 def payments(business_id: str):
     return get_business_db(business_id)["payments"]
 
+async def get_categories(business_id: str) -> List[Dict[str, Any]]:
+    """
+    Returns all categories for a business.
+    """
+    db: AsyncIOMotorDatabase = get_db()
+
+    cursor = db.categories.find({}, {"_id": 0})
+    categories = []
+
+    async for doc in cursor:
+        categories.append(doc)
+
+    return categories
 '''
 if __name__ == "__main__":
     async def _main():
         connect_mongo()
         try:
-            user_id = os.getenv("USER_ID", "test-user-1")
-            out = await check_wallet_by_id(user_id)
+            out = await get_categories('0b235c20-be85-4f46-831c-d382891a2fa1')
             print(out)
         finally:
             close_mongo()
 
     asyncio.run(_main())
+
 '''
