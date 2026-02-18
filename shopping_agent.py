@@ -577,14 +577,11 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             user_text = (m.content or "").strip()
             break
 
-    # ---- Load latest payment attempt (if any) ----
+    # ---- Load latest payment attempt ----
     latest = await load_latest_payment(thread_id, business_id)
 
     # =====================================================
-    # STEP 1: User says checkout → create attempt
-    # =====================================================
-    # =====================================================
-    # STEP 1: User says checkout → create attempt
+    # STEP 1 — User triggers checkout
     # =====================================================
     if user_text.lower() in {"checkout", "buy", "buy my cart", "pay", "pay now"}:
 
@@ -600,13 +597,21 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             "message": "What’s your email?",
             "data": {"payment_id": str(payment["_id"])},
         }
+
         return {"messages": [AIMessage(content=json.dumps(envelope))]}
 
+    # =====================================================
+    # STEP 2 — Email entered
+    # =====================================================
+    if latest and latest.get("stage") == "awaiting_email":
 
-    # =====================================================
-    # STEP 2: Email entered
-    # =====================================================
-    if latest and latest.get("stage") == "awaiting_email" and _EMAIL_RE.match(user_text):
+        if not _EMAIL_RE.match(user_text):
+            envelope = {
+                "type": "payments",
+                "message": "Please enter a valid email address.",
+                "data": None,
+            }
+            return {"messages": [AIMessage(content=json.dumps(envelope))]}
 
         await update_payment_attempt(
             latest["_id"],
@@ -619,14 +624,14 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
 
         envelope = {
             "type": "payments",
-            "message": "What’s your delivery address?",
+            "message": "Please enter your full shipping address.",
             "data": None,
         }
+
         return {"messages": [AIMessage(content=json.dumps(envelope))]}
 
-
     # =====================================================
-    # STEP 3: Address entered
+    # STEP 3 — Address entered → validate country
     # =====================================================
     if latest and latest.get("stage") == "awaiting_address":
 
@@ -645,19 +650,59 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             latest["_id"],
             business_id,
             {
-                "stage": "address_verified",
-                "address": user_text,
-                "geo": geo,
+                "stage": "address_validated",
+                "address": geo.get("formatted_address"),
+                "country": geo.get("country"),
             },
         )
 
         envelope = {
             "type": "payments",
-            "message": "Payments not configured yet.",
-            "data": None,
+            "message": "Do you already have stablecoins on Solana?",
+            "data": {
+                "inline_buttons": [
+                    [{"text": "✅ Yes – I have USDC", "callback_data": "crypto_yes"}],
+                    [{"text": "💳 No – I need to buy crypto", "callback_data": "crypto_no"}],
+                ]
+            },
         }
+
         return {"messages": [AIMessage(content=json.dumps(envelope))]}
 
+    # =====================================================
+    # STEP 4 — Crypto choice
+    # =====================================================
+    if latest and latest.get("stage") == "address_validated":
+
+        if user_text in {"crypto_yes", "crypto_no"}:
+
+            await update_payment_attempt(
+                latest["_id"],
+                business_id,
+                {
+                    "stage": "not_configured",
+                    "crypto_choice": user_text,
+                },
+            )
+
+            envelope = {
+                "type": "payments",
+                "message": "Payments not configured yet.",
+                "data": None,
+            }
+
+            return {"messages": [AIMessage(content=json.dumps(envelope))]}
+
+    # =====================================================
+    # Fallback
+    # =====================================================
+    envelope = {
+        "type": "payments",
+        "message": "Say checkout to start payment.",
+        "data": None,
+    }
+
+    return {"messages": [AIMessage(content=json.dumps(envelope))]}
 
 
 # ----------------------------

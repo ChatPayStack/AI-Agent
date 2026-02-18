@@ -39,10 +39,20 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
     # PAYMENTS (disabled)
     # -----------------
     if etype == "payments":
+        data = envelope.get("data") or {}
+
+        reply_markup = None
+        if data.get("inline_buttons"):
+            reply_markup = {
+                "inline_keyboard": data.get("inline_buttons")
+            }
+
         out.append({
             "type": "text",
-            "content": envelope.get("message", "")
+            "content": envelope.get("message", ""),
+            "reply_markup": reply_markup
         })
+
         return out
 
     # -----------------
@@ -111,10 +121,12 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
             out.append({
                 "type": "text",
                 "content": card_text,
-                "inline_buttons": [
-                    [{"text": "➕ Add to Cart", "callback_data": f"add:{p.get('name')}"}],
-                    [{"text": "🛒 View Cart", "callback_data": "view_cart"}]
-                ]
+                "reply_markup": {
+                    "inline_keyboard": [
+                        [{"text": "➕ Add to Cart", "callback_data": f"add:{p.get('name')}"}],
+                        [{"text": "🛒 View Cart", "callback_data": "view_cart"}]
+                    ]
+                }
             })
 
             return out
