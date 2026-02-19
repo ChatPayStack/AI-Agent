@@ -41,6 +41,8 @@ import re
 
 from db import load_cart_db, save_cart_db
 
+from payment_check import wait_for_usdc_payment
+
 from db import (
     append_conversation_message,
     load_last_conversation_messages,
@@ -676,19 +678,49 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
 
         if user_text == "crypto_yes":
 
+            business_address = os.getenv("BUSINESS_ADDRESS")
+            if not business_address:
+                envelope = {
+                    "type": "payments",
+                    "message": "Payment configuration error.",
+                    "data": None,
+                }
+                return {"messages": [AIMessage(content=json.dumps(envelope))]}
+
+            # Generate unique reference
+            reference_kp = Keypair()
+            reference = str(reference_kp.pubkey())
+
+            subtotal = summary.get("subtotal_amount")
+            amount_ui = str(subtotal)
+
+            pay_url = solana_pay_url(
+                recipient=business_address,
+                amount=amount_ui,
+                reference=reference,
+            )
+
             await update_payment_attempt(
                 latest["_id"],
                 business_id,
                 {
-                    "stage": "not_configured",
-                    "crypto_choice": "yes",
+                    "stage": "awaiting_payment",
+                    "reference": reference,
+                    "amount": amount_ui,
+                    "pay_url": pay_url,
                 },
             )
 
+            # RETURN IMMEDIATELY
             envelope = {
                 "type": "payments",
-                "message": "Payments not configured yet.",
-                "data": None,
+                "message": f"Please complete payment:\n{pay_url}\n\nYou have 5 minutes.",
+                "data": {
+                    "awaiting_payment": True,
+                    "reference": reference,
+                    "amount": amount_ui,
+                    "payment_id": str(latest["_id"]),
+                },
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
