@@ -1,15 +1,19 @@
 # paylink.py
 import urllib.parse as up
 from typing import Optional
+from dotenv import load_dotenv
+import os
 
-USDC_MINT_MAINNET = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+load_dotenv()
 
+USDC_MINT_MAINNET = os.getenv("USDC_MINT_MAINNET")
+USDC_MINT_DEVNET= os.getenv("USDC_MINT_DEVNET")
 
 def solana_pay_url(
     recipient: str,
     amount: str,
     *,
-    spl_token: Optional[str] = USDC_MINT_MAINNET,  # set None for SOL
+    spl_token: Optional[str] = USDC_MINT_DEVNET,  
     label: str = "ChatPay",
     message: Optional[str] = None,
     memo: Optional[str] = None,

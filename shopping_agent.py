@@ -674,20 +674,39 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
     # =====================================================
     if latest and latest.get("stage") == "address_validated":
 
-        if user_text in {"crypto_yes", "crypto_no"}:
+        if user_text == "crypto_yes":
 
             await update_payment_attempt(
                 latest["_id"],
                 business_id,
                 {
                     "stage": "not_configured",
-                    "crypto_choice": user_text,
+                    "crypto_choice": "yes",
                 },
             )
 
             envelope = {
                 "type": "payments",
                 "message": "Payments not configured yet.",
+                "data": None,
+            }
+
+            return {"messages": [AIMessage(content=json.dumps(envelope))]}
+
+        if user_text == "crypto_no":
+
+            await update_payment_attempt(
+                latest["_id"],
+                business_id,
+                {
+                    "stage": "not_configured",
+                    "crypto_choice": "no",
+                },
+            )
+
+            envelope = {
+                "type": "payments",
+                "message": "Onramping not configured yet.",
                 "data": None,
             }
 

@@ -13,6 +13,8 @@ from spl.token.instructions import get_associated_token_address
 
 from paylink import USDC_MINT_MAINNET
 
+from paylink import USDC_MINT_DEVNET
+
 from solders.signature import Signature
 
 import json
@@ -57,14 +59,14 @@ async def wait_for_usdc_payment(
     timeout_seconds: int = 300,
     poll_every_seconds: int = 5,
 ) -> Optional[str]:
-    rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com")
+    rpc_url = os.getenv("DEVNET_RPC_URL", "https://api.devnet.solana.com")
     business_address = os.getenv("BUSINESS_ADDRESS")
     if not business_address:
         raise RuntimeError("BUSINESS_ADDRESS missing in .env")
 
     ref_pk = Pubkey.from_string(reference)
     business_pk = Pubkey.from_string(business_address)
-    usdc_mint_pk = Pubkey.from_string(USDC_MINT_MAINNET)
+    usdc_mint_pk = Pubkey.from_string(USDC_MINT_DEVNET)
 
     business_ata = str(get_associated_token_address(owner=business_pk, mint=usdc_mint_pk))
     amount_base = _to_usdc_base_units(amount_ui)
