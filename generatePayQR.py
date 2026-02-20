@@ -1,6 +1,11 @@
 import qrcode
+from PIL import Image
 
-solana_pay_url = "solana:4RqXDrEr8itNo5kQU8vERg2UBV4QrPYRV2D6DJxovp93?amount=0.00&spl-token=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&label=ChatPay&message=Cart%20checkout&reference=32ndXWEixp4KnzomcE6nikoK2uHb9UJkoL3bE3dv3Qux"
+def generate_solana_qr(solana_url: str) -> Image.Image:
+    """
+    Generate a QR code image from a full Solana Pay URL.
+    Returns a PIL Image object (does not save to disk).
+    """
+    img = qrcode.make(solana_url)
+    return img
 
-img = qrcode.make(solana_pay_url)
-img.save("payment_qr.png")

@@ -2,6 +2,8 @@
 
 from typing import Dict, Any, List
 import re
+from generatePayQR import generate_solana_qr
+import io
 
 CONFIDENCE_THRESHOLD = 0.5
 
@@ -40,6 +42,30 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
     # -----------------
     if etype == "payments":
         data = envelope.get("data") or {}
+
+        if data.get("awaiting_payment") and envelope.get("message"):
+            # Extract solana link from message
+            solana_link = envelope["message"].split("\n")[1]
+
+            qr_img = generate_solana_qr(solana_link)
+
+            # Convert to bytes for Telegram
+            buffer = io.BytesIO()
+            qr_img.save(buffer, format="PNG")
+            buffer.seek(0)
+
+            out.append({
+                "type": "qr",
+                "content": buffer
+            })
+
+            out.append({
+                "type": "text",
+                "content": envelope.get("message")
+            })
+
+            return out
+        
 
         reply_markup = None
         if data.get("inline_buttons"):

@@ -67,6 +67,20 @@ async def send_telegram_message(chat_id: int, msg: dict, worker_id: str, trace_i
                     "chat_id": chat_id,
                     "photo": msg["content"],
                 }
+                
+            elif msg["type"] == "qr":
+                url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+
+                files = {
+                    "photo": ("qr.png", msg["content"], "image/png")
+                }
+
+                data = {
+                    "chat_id": str(chat_id)
+                }
+
+                resp = await client.post(url, data=data, files=files)
+                return
 
             else:
                 return
