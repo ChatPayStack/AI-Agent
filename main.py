@@ -12,6 +12,8 @@ from telegram_formatter import format_for_telegram
 from payment_check import wait_for_usdc_payment
 from payments_store import update_payment_attempt
 
+from bson import ObjectId
+
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -153,6 +155,7 @@ async def main():
                     )
 
                     if sig:
+                        payment_id = ObjectId(payment_id)
                         await update_payment_attempt(
                             payment_id,
                             business_id,
@@ -171,6 +174,7 @@ async def main():
                         )
 
                     else:
+                        payment_id = ObjectId(payment_id)
                         await update_payment_attempt(
                             payment_id,
                             business_id,
