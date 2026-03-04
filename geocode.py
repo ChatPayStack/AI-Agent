@@ -6,7 +6,7 @@ load_dotenv()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
-ALLOWED_COUNTRIES = {"Ireland", "United Kingdom", "Germany"}
+ALLOWED_COUNTRIES = {"Ireland", "United Kingdom"}
 
 
 async def geocode_address(address: str) -> dict | None:
