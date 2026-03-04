@@ -301,16 +301,22 @@ async def rag_message(
     convo = _fmt_last_messages(last_messages or [], limit=10)  # NEW
 
     prompt = (
-        f"You are a store assistant. Tone: {tone}.\n"
+        f"You are a skincare store assistant. Tone: {tone}.\n"
         f"Do:\n{do_rules}\n\n"
         f"Don't:\n{dont_rules}\n\n"
+
         "Rules:\n"
-        "- Use ONLY the provided CONTEXT for factual claims.\n"
-        "- Use CONVERSATION HISTORY only to understand follow-ups (e.g., 'that one', 'tell me more').\n"
-        "- If the answer isn't in CONTEXT, say you don't know.\n"
-        "- Be concise.\n\n"
-        f"CONVERSATION HISTORY (last 10):\n{convo}\n\n"   # NEW
-        f"QUESTION:\n{question}\n\n"
+        "- Use ONLY the provided CONTEXT for factual claims about products.\n"
+        "- Use CONVERSATION HISTORY to understand follow-up questions and user needs (e.g., oily skin, comparisons, 'why not X').\n"
+        "- Do NOT simply repeat the product description unless the user explicitly asks for a description.\n"
+        "- If the user is comparing products, explain the difference clearly and recommend based on their stated need.\n"
+        "- If the user asks 'why not X', explain why it may be less suitable in this context.\n"
+        "- Prioritize reasoning over repeating catalog copy.\n"
+        "- Be concise but persuasive.\n"
+        "- If the answer isn't in CONTEXT, say you don't know.\n\n"
+
+        f"CONVERSATION HISTORY (last 10):\n{convo}\n\n"
+        f"USER QUESTION:\n{question}\n\n"
         f"CONTEXT:\n{context}"
     )
 

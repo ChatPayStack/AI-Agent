@@ -169,6 +169,15 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
             question = (m.content or "").strip()
             break
 
+    reply_context = None
+    for m in state["messages"]:
+        if isinstance(m, SystemMessage) and "replying to this previous assistant message" in m.content:
+            reply_context = m.content
+            break
+
+    if reply_context:
+        question = f"{question}\n\nContext (user reply target):\n{reply_context}"
+
     search = await rag_search(
         business_id=business_id,
         question=question,
@@ -309,6 +318,40 @@ _JSON_OBJ_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
 async def extract_cart_action(user_text: str) -> Dict[str, Any]:
+    NUMBER_WORDS = {
+    "one": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    }
+
+    text = user_text.strip().lower()
+
+    # Match: add 2 / add x2
+    m_digit = re.match(r"^add\s*x?\s*(\d+)\s*$", text)
+    if m_digit:
+        return {
+            "intent": "add",
+            "query": None,   # fallback to RECENT_ENTITIES
+            "qty": int(m_digit.group(1)),
+        }
+
+    # Match: add two / add three
+    m_word = re.match(r"^add\s+([a-z]+)\s*$", text)
+    if m_word:
+        word = m_word.group(1)
+        if word in NUMBER_WORDS:
+            return {
+                "intent": "add",
+                "query": None,
+                "qty": NUMBER_WORDS[word],
+            }
     prompt = f"USER_MESSAGE:\n{user_text}\n"
     resp = await cart_llm.ainvoke([SystemMessage(content=CART_EXTRACT_SYSTEM), HumanMessage(content=prompt)])
     raw = (resp.content or "").strip()
@@ -891,6 +934,7 @@ async def chat_turn(
     turn_id: str,
     business_id: Optional[str] = None,
     history_limit: int = 20,
+    reply_to_text: Optional[str] = None,
 ) -> str:
     business_id = business_id or DEFAULT_BUSINESS_ID
 
@@ -912,6 +956,13 @@ async def chat_turn(
             msgs.append(AIMessage(content=m["content"]))
         else:
             msgs.append(HumanMessage(content=m["content"]))
+
+    if reply_to_text:
+            msgs.append(
+                SystemMessage(
+                    content=f"The user is replying to this previous assistant message:\n{reply_to_text}"
+                )
+            )    
 
     out = await graph.ainvoke(
         {"thread_id": thread_id, "business_id": business_id, "messages": msgs,"turn_id": turn_id},

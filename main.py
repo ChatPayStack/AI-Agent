@@ -195,18 +195,28 @@ async def main():
                     message = data.get("message") or {}
                     if not message:
                         continue
+
+                    reply = message.get("reply_to_message")
+                    reply_text = reply.get("text") if reply else None
+
+                    user_id = message["from"]["id"]
+                    user_text = (message.get("text") or "").strip()
+                    chat_id = message["chat"]["id"]
+                    if not message:
+                        continue
                     user_id = message["from"]["id"]
                     user_text = (message.get("text") or "").strip()
                     chat_id = message["chat"]["id"]
 
                 thread_id = str(user_id)
                 turn_id = str(uuid.uuid4())
-
+                print("Reply Text:",reply_text)
                 response = await chat_turn(
                     thread_id=thread_id,
                     text=user_text,
                     business_id=business_id,
-                    turn_id=turn_id
+                    turn_id=turn_id,
+                    reply_to_text=reply_text
                 )
 
                 print(f"[{WORKER_ID}] agent_response={response}")
