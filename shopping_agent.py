@@ -671,7 +671,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
 
         envelope = {
             "type": "payments",
-            "message": "Please enter your full shipping address.",
+            "message": "Please enter your full shipping address. The delivery cost is added to your total based on your address.",
             "data": None,
         }
 
@@ -693,6 +693,18 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             }
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
 
+        country = geo.get("country")
+
+        delivery_cost = 0
+
+        if country == "Ireland":
+            delivery_cost = 3
+        elif country == "United Kingdom":
+            delivery_cost = 7
+
+        subtotal = float(summary.get("subtotal_amount", 0))
+        total = subtotal + delivery_cost
+
         await update_payment_attempt(
             latest["_id"],
             business_id,
@@ -700,6 +712,8 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
                 "stage": "address_validated",
                 "address": geo.get("formatted_address"),
                 "country": geo.get("country"),
+                "delivery_cost": delivery_cost,
+                "total_amount": total,
             },
         )
 
@@ -722,8 +736,13 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
     if latest and latest.get("stage") == "address_validated":
 
         if user_text == "crypto_yes":
+            
+            latest = await load_latest_payment(thread_id, business_id)
+
+            print("LATEST PAYMENT:", latest)
 
             business_address = os.getenv("BUSINESS_ADDRESS")
+
             if not business_address:
                 envelope = {
                     "type": "payments",
@@ -737,7 +756,13 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             reference = str(reference_kp.pubkey())
 
             subtotal = summary.get("subtotal_amount")
-            amount_ui = str(subtotal)
+            amount = latest.get("total_amount")
+
+            if amount is None:
+                subtotal = float(summary.get("subtotal_amount", 0))
+                amount = subtotal
+
+            amount_ui = str(amount)
 
             pay_url = solana_pay_url(
                 recipient=business_address,
@@ -776,7 +801,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             currency = "usd"
 
             stripe_data = create_stripe_checkout(
-                amount=float(subtotal),
+                amount=float(latest.get("total_amount")),
                 currency=currency,
                 metadata={
                     "business_id": business_id,

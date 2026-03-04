@@ -22,7 +22,6 @@ async def load_latest_payment(thread_id: str, business_id: str) -> Dict[str, Any
     return await payments(business_id).find_one(
         {"thread_id": thread_id},
         sort=[("created_at", -1)],
-        projection={"_id": 1, "stage": 1},
     )
 
 
