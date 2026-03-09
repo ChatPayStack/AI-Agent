@@ -13,7 +13,7 @@ def solana_pay_url(
     recipient: str,
     amount: str,
     *,
-    spl_token: Optional[str] = USDC_MINT_DEVNET,  
+    spl_token: Optional[str] = USDC_MINT_MAINNET,  
     label: str = "ChatPay",
     message: Optional[str] = None,
     memo: Optional[str] = None,
