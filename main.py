@@ -184,7 +184,7 @@ async def main():
                     )
 
                     continue
-
+                reply_text = None
                 callback = data.get("callback_query")
 
                 if callback:
