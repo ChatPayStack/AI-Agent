@@ -6,34 +6,18 @@ import os
 
 load_dotenv()
 
-USDC_MINT_MAINNET = os.getenv("USDC_MINT_MAINNET")
-USDC_MINT_DEVNET= os.getenv("USDC_MINT_DEVNET")
+EURC_MINT_MAINNET = os.getenv("EURC_MINT_MAINNET")
 
 def solana_pay_url(
     recipient: str,
     amount: str,
     *,
-    spl_token: Optional[str] = USDC_MINT_MAINNET,  
+    spl_token: Optional[str] = EURC_MINT_MAINNET,  # ✅ default → EURC
     label: str = "ChatPay",
     message: Optional[str] = None,
     memo: Optional[str] = None,
     reference: Optional[str] = None,
 ) -> str:
-    """
-    Build a Solana Pay URL.
-
-    Example:
-      solana:<recipient>?amount=5.25&spl-token=<USDC_MINT>&label=ChatPay&message=Invoice+%23123&memo=inv_123
-
-    Args:
-      recipient: Solana address (base58 string)
-      amount: amount as a string (e.g., "5.25")
-      spl_token: SPL token mint (USDC by default). Set to None to request SOL.
-      label/message/memo/reference: optional Solana Pay params
-
-    Returns:
-      A solana: URL string
-    """
     if not recipient or not isinstance(recipient, str):
         raise ValueError("recipient must be a non-empty string")
     if not amount or not isinstance(amount, str):
@@ -53,17 +37,3 @@ def solana_pay_url(
         params["reference"] = reference
 
     return f"solana:{recipient}?{up.urlencode(params, quote_via=up.quote)}"
-
-'''
-if __name__ == "__main__":
-    # quick manual test
-    recipient = "4RqXDrEr8itNo5kQU8vERg2UBV4QrPYRV2D6DJxovp93"
-    url = solana_pay_url(
-        recipient,
-        "5.25",
-        message="Invoice #123",
-        memo="inv_123",
-        # reference="A_UNIQUE_PUBKEY",
-    )
-    print(url)
-'''

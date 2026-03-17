@@ -35,13 +35,13 @@ from payments_store import create_payment_attempt, load_latest_payment, update_p
 
 from solders.keypair import Keypair
 
-from paylink import solana_pay_url, USDC_MINT_MAINNET
+from paylink import solana_pay_url
 
 import re
 
 from db import load_cart_db, save_cart_db
 
-from payment_check import wait_for_usdc_payment
+from payment_check import wait_for_eurc_payment
 
 from db import (
     append_conversation_message,
@@ -722,7 +722,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             "message": "Do you already have stablecoins on Solana?",
             "data": {
                 "inline_buttons": [
-                    [{"text": "✅ Pay with USDC", "callback_data": "crypto_yes"}],
+                    [{"text": "✅ Pay with EURC", "callback_data": "crypto_yes"}],
                     [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}],
                 ]
             },
@@ -798,7 +798,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
         if user_text == "stripe":
 
             subtotal = summary.get("subtotal_amount")
-            currency = "usd"
+            currency = "eur"
 
             stripe_data = create_stripe_checkout(
                 amount=float(latest.get("total_amount")),

@@ -42,12 +42,12 @@ _PRICE_RE = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)?\s*$")
 
 def parse_price(price_text: Optional[str]) -> Tuple[float, str]:
     if not price_text:
-        return 0.0, "USDC"
+        return 0.0, "EUR"
     m = _PRICE_RE.match(price_text)
     if not m:
-        return 0.0, "USDC"
+        return 0.0, "EUR"
     amount = float(m.group(1))
-    currency = (m.group(2) or "USDC").upper()
+    currency = (m.group(2) or "EUR").upper()
     return amount, currency
 
 
@@ -66,7 +66,7 @@ def recompute_summary(cart: Dict[str, Any]) -> None:
     items = cart.get("items") or []
     subtotal = 0.0
     count = 0
-    currency = cart.get("summary", {}).get("currency") or "USDC"
+    currency = cart.get("summary", {}).get("currency") or "EUR"
 
     for it in items:
         qty = int(it.get("qty") or 0)
@@ -74,7 +74,7 @@ def recompute_summary(cart: Dict[str, Any]) -> None:
         it["line_total_amount"] = unit * qty
         subtotal += it["line_total_amount"]
         count += qty
-        currency = (it.get("unit_price_currency") or currency or "USDC").upper()
+        currency = (it.get("unit_price_currency") or currency or "EUR").upper()
 
     cart["summary"] = {
         "item_count": count,

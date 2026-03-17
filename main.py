@@ -10,7 +10,7 @@ from shopping_agent import chat_turn
 from db import connect_mongo, close_mongo, get_categories, payments
 from telegram_formatter import format_for_telegram
 
-from payment_check import wait_for_usdc_payment
+from payment_check import wait_for_eurc_payment
 from payments_store import update_payment_attempt, load_latest_payment
 
 from bson import ObjectId
@@ -245,7 +245,7 @@ async def main():
                     amount_ui = envelope["data"]["amount"]
                     payment_id = envelope["data"]["payment_id"]
 
-                    sig = await wait_for_usdc_payment(
+                    sig = await wait_for_eurc_payment(
                         reference=reference,
                         amount_ui=amount_ui,
                         timeout_seconds=300,

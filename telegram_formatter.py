@@ -145,7 +145,7 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
 
             card_text = (
                 f"*{p.get('name')}*\n"
-                f"${p.get('price')}\n\n"
+                f"€{p.get('price')}\n\n"
                 f"{clean_desc}"
             )
 
