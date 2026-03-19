@@ -66,13 +66,17 @@ async def send_telegram_message(chat_id: int, msg: dict, worker_id: str, trace_i
                     "reply_markup": msg.get("reply_markup") or REPLY_KEYBOARD
                 }
 
+                resp = await client.post(url, json=payload)
+
             elif msg["type"] == "photo":
                 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
                 payload = {
                     "chat_id": chat_id,
                     "photo": msg["content"],
                 }
-                
+
+                resp = await client.post(url, json=payload)
+
             elif msg["type"] == "qr":
                 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
 
@@ -85,20 +89,21 @@ async def send_telegram_message(chat_id: int, msg: dict, worker_id: str, trace_i
                 }
 
                 resp = await client.post(url, data=data, files=files)
-                return
 
             else:
-                return
-
-            resp = await client.post(url, json=payload)
+                return None
 
             if resp.status_code >= 400:
                 print(f"[{worker_id}] TELEGRAM ERROR {resp.status_code}: {resp.text}")
+                return None
+
+            # 🔥 Extract message_id
+            data = resp.json()
+            return data.get("result", {}).get("message_id")
 
     except Exception as e:
         print(f"[{worker_id}] SEND ERROR: {repr(e)}")
-        raise
-
+        return None
 
 async def main():
     print(f"[{WORKER_ID}] started")
@@ -226,13 +231,18 @@ async def main():
                 # 1️⃣ SEND INITIAL MESSAGE FIRST
                 messages = format_for_telegram(envelope)
 
+                payment_message_ids = []
+
                 for msg in messages:
-                    await send_telegram_message(
+                    mid = await send_telegram_message(
                         chat_id=chat_id,
                         msg=msg,
                         worker_id=WORKER_ID,
                         trace_id=str(data.get("update_id"))
                     )
+
+                    if msg.get("meta", {}).get("payment_ui") and mid:
+                        payment_message_ids.append(mid)
 
                 # 2️⃣ THEN WAIT FOR PAYMENT (if required)
                 if (
@@ -290,11 +300,20 @@ async def main():
 
                     else:
                         payment_id = ObjectId(payment_id)
+
                         await update_payment_attempt(
                             payment_id,
                             business_id,
                             {"stage": "expired"},
                         )
+
+                        # 🔥 DELETE payment UI messages
+                        async with httpx.AsyncClient(timeout=15) as client:
+                            for mid in payment_message_ids:
+                                await client.post(
+                                    f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                                    json={"chat_id": chat_id, "message_id": mid}
+                                )
 
                         await send_telegram_message(
                             chat_id,
@@ -302,7 +321,6 @@ async def main():
                             WORKER_ID,
                             str(data.get("update_id"))
                         )
-
             except Exception as e:
                 print(f"[{WORKER_ID}] ERROR: {e}")
 

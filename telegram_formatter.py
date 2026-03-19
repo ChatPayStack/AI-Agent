@@ -56,12 +56,14 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
 
             out.append({
                 "type": "qr",
-                "content": buffer
+                "content": buffer,
+                "meta": {"payment_ui": True}
             })
 
             out.append({
                 "type": "text",
-                "content": envelope.get("message")
+                "content": envelope.get("message"),
+                "meta": {"payment_ui": True}
             })
 
             return out
