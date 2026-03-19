@@ -263,6 +263,8 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
             business_id=business_id,
             question=question,
             last_messages=last_messages,
+            thread_id=state["thread_id"],
+            turn_id=state["turn_id"],
         )
     ).get("message", "")
 
@@ -317,7 +319,7 @@ Rules:
 _JSON_OBJ_RE = re.compile(r"\{.*\}", re.DOTALL)
 
 
-async def extract_cart_action(user_text: str) -> Dict[str, Any]:
+async def extract_cart_action(user_text: str,*,business_id: str,thread_id: str,turn_id: str,) -> Dict[str, Any]:
     NUMBER_WORDS = {
     "one": 1,
     "two": 2,
@@ -353,7 +355,17 @@ async def extract_cart_action(user_text: str) -> Dict[str, Any]:
                 "qty": NUMBER_WORDS[word],
             }
     prompt = f"USER_MESSAGE:\n{user_text}\n"
-    resp = await cart_llm.ainvoke([SystemMessage(content=CART_EXTRACT_SYSTEM), HumanMessage(content=prompt)])
+    resp = await call_llm(
+        cart_llm,
+        [
+            SystemMessage(content=CART_EXTRACT_SYSTEM),
+            HumanMessage(content=prompt)
+        ],
+        business_id=business_id,
+        thread_id=thread_id,
+        turn_id=turn_id,
+        agent_node="cart",
+    )
     raw = (resp.content or "").strip()
 
     m = _JSON_OBJ_RE.search(raw)
@@ -483,7 +495,8 @@ async def cart_remove_node(state: State) -> Dict[str, Any]:
             user_text = (m.content or "").strip()
             break
 
-    act = await extract_cart_action(user_text)
+    act = await extract_cart_action(user_text, business_id=business_id, thread_id=thread_id,turn_id=state["turn_id"],)
+    
     target = act.get("query")
 
     if not target:
@@ -538,7 +551,8 @@ async def cart_add_node(state: State) -> Dict[str, Any]:
             user_text = (m.content or "").strip()
             break
 
-    act = await extract_cart_action(user_text)
+    act = await extract_cart_action(user_text, business_id=business_id, thread_id=thread_id,turn_id=state["turn_id"],)
+
     query = act.get("query")
     qty = act.get("qty") or 1
 
@@ -900,7 +914,17 @@ async def chitchat_agent_node(state: State) -> Dict[str, Any]:
             history_snips.append(f"ASSISTANT: {m.content}")
 
     prompt = f"CONVERSATION (recent):\n" + "\n".join(history_snips) + f"\n\nUSER MESSAGE:\n{user_text}\n"
-    resp = await chitchat_message_llm.ainvoke([SystemMessage(content=CHITCHAT_SYSTEM), HumanMessage(content=prompt)])
+    resp = await call_llm(
+        chitchat_message_llm,
+        [
+            SystemMessage(content=CHITCHAT_SYSTEM),
+            HumanMessage(content=prompt)
+        ],
+        business_id=state["business_id"],
+        thread_id=state["thread_id"],
+        turn_id=state["turn_id"],
+        agent_node="chitchat",
+    )
     msg = " ".join((resp.content or "").strip().split()) or "Hey — what can I help you find today?"
 
     envelope = {"type": "chitchat", "message": msg, "data": None}

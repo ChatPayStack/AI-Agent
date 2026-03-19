@@ -6,6 +6,10 @@ from typing import List, Dict, Any
 from openai import OpenAI
 from db import get_db
 
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import HumanMessage
+from llm_wrapper import call_llm
+
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
@@ -265,7 +269,9 @@ async def rag_message(
     *,
     business_id: str,
     question: str,
-    last_messages: List[Dict[str, str]] | None = None,  # NEW
+    last_messages: List[Dict[str, str]] | None = None,
+    thread_id: str,
+    turn_id: str,
     top_k: int = 6,
     model: str = "gpt-4.1-mini",
 ) -> Dict[str, Any]:
@@ -298,7 +304,7 @@ async def rag_message(
         )
     context = "\n\n".join(ctx_parts)
 
-    convo = _fmt_last_messages(last_messages or [], limit=10)  # NEW
+    convo = _fmt_last_messages(last_messages or [], limit=10)
 
     prompt = (
         f"You are a skincare store assistant. Tone: {tone}.\n"
@@ -307,27 +313,31 @@ async def rag_message(
 
         "Rules:\n"
         "- Use ONLY the provided CONTEXT for factual claims about products.\n"
-        "- Use CONVERSATION HISTORY to understand follow-up questions and user needs (e.g., oily skin, comparisons, 'why not X').\n"
-        "- Do NOT simply repeat the product description unless the user explicitly asks for a description.\n"
-        "- If the user is comparing products, explain the difference clearly and recommend based on their stated need.\n"
-        "- If the user asks 'why not X', explain why it may be less suitable in this context.\n"
-        "- Prioritize reasoning over repeating catalog copy.\n"
+        "- Use CONVERSATION HISTORY to understand follow-up questions and user needs.\n"
+        "- Do NOT simply repeat the product description unless asked.\n"
+        "- If comparing products, explain differences clearly.\n"
+        "- If asked 'why not X', explain why.\n"
+        "- Prioritize reasoning over copying.\n"
         "- Be concise but persuasive.\n"
-        "- If the answer isn't in CONTEXT, say you don't know.\n\n"
+        "- If answer isn't in CONTEXT, say you don't know.\n\n"
 
         f"CONVERSATION HISTORY (last 10):\n{convo}\n\n"
         f"USER QUESTION:\n{question}\n\n"
         f"CONTEXT:\n{context}"
     )
 
-    resp = client.responses.create(model=model, input=prompt)
+    llm = ChatOpenAI(model=model, temperature=0)
 
-    output_text = getattr(resp, "output_text", None)
-    if not output_text:
-        output_text = resp.output[0].content[0].text
+    resp = await call_llm(
+        llm,
+        [HumanMessage(content=prompt)],
+        business_id=business_id,
+        thread_id=thread_id,
+        turn_id=turn_id,
+        agent_node="enquiry",
+    )
 
-    return {"message": output_text}
-
+    return {"message": resp.content}
 '''
 if __name__ == "__main__":
     import asyncio
