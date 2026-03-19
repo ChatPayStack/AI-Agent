@@ -18,8 +18,8 @@ def create_stripe_checkout(amount: float, currency: str, metadata: dict):
             "quantity": 1,
         }],
         metadata=metadata,
-        success_url="https://example.com/success",
-        cancel_url="https://example.com/cancel",
+        success_url="https://t.me/AmfaCosmeticsBot",
+        cancel_url="https://t.me/AmfaCosmeticsBot",
     )
 
     return {
