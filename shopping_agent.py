@@ -52,6 +52,8 @@ from geocode import geocode_address, is_allowed_location
 
 from stripe_pay import create_stripe_checkout
 
+from privy_wallet import create_privy_wallet
+
 load_dotenv()
 
 # ----------------------------
@@ -795,6 +797,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
                 "inline_buttons": [
                     [{"text": "✅ Pay with EURC", "callback_data": "crypto_yes"}],
                     [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}],
+                    [{"text": "⚡ Pay with ChatPay", "callback_data": "c_wallet"}]
                 ]
             },
         }
@@ -899,6 +902,32 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
                     "awaiting_payment": False,
                     "stripe": True,
                 },
+            }
+
+            return {"messages": [AIMessage(content=json.dumps(envelope))]}
+
+        if user_text == "c_wallet":
+
+            # 🔑 Use thread_id as user_id
+            user_id = thread_id
+
+            # 🧠 Create or fetch wallet (function already handles both)
+            address = await create_privy_wallet(user_id)
+
+            # Optional: update payment attempt (just tagging, no flow change)
+            await update_payment_attempt(
+                latest["_id"],
+                business_id,
+                {
+                    "payment_method": "chatpay",
+                    "wallet_address": address,
+                },
+            )
+
+            envelope = {
+                "type": "payments",
+                "message": f"Your ChatPay wallet:\n\n`{address}`",
+                "data": None,
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
