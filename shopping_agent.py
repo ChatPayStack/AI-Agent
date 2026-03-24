@@ -54,6 +54,8 @@ from stripe_pay import create_stripe_checkout
 
 from privy_wallet import create_privy_wallet
 
+from ramping import create_onramp_session
+
 load_dotenv()
 
 # ----------------------------
@@ -795,9 +797,8 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             "message": "Do you already have stablecoins on Solana?",
             "data": {
                 "inline_buttons": [
-                    [{"text": "✅ Pay with EURC", "callback_data": "crypto_yes"}],
                     [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}],
-                    [{"text": "⚡ Pay with ChatPay", "callback_data": "c_wallet"}]
+                    [{"text": "💶 Pay with EURC", "callback_data": "eurc"}]
                 ]
             },
         }
@@ -808,7 +809,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
     # STEP 4 — Crypto choice
     # =====================================================
     if latest and latest.get("stage") == "address_validated":
-
+        '''
         if user_text == "crypto_yes":
             
             latest = await load_latest_payment(thread_id, business_id)
@@ -868,6 +869,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
+        '''
         
         if user_text == "stripe":
 
@@ -906,13 +908,16 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
 
-        if user_text == "c_wallet":
+        if user_text == "eurc":
 
             # 🔑 Use thread_id as user_id
             user_id = thread_id
 
-            # 🧠 Create or fetch wallet (function already handles both)
-            address = await create_privy_wallet(user_id)
+            amount = latest.get("total_amount")
+            
+            onramp = create_onramp_session(amount,thread_id,str(latest["_id"]))
+            onramp_url = onramp.get("session", {}).get("onrampUrl")
+            
 
             # Optional: update payment attempt (just tagging, no flow change)
             await update_payment_attempt(
@@ -920,14 +925,18 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
                 business_id,
                 {
                     "payment_method": "chatpay",
-                    "wallet_address": address,
+                    "onramp_url": onramp_url,
+                    "stage": "awaiting_onramp_payment"
                 },
             )
 
             envelope = {
                 "type": "payments",
-                "message": f"Your ChatPay wallet:\n\n`{address}`",
-                "data": None,
+                "message": f"Complete your payment using card. EURC will be sent securely.\n\n{onramp_url}",
+                "data": {
+                    "onramp": True,
+                    "url": onramp_url
+                },
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}

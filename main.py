@@ -63,7 +63,8 @@ async def send_telegram_message(chat_id: int, msg: dict, worker_id: str, trace_i
                     "chat_id": chat_id,
                     "text": msg["content"],
                     "parse_mode": "Markdown",
-                    "reply_markup": msg.get("reply_markup") or REPLY_KEYBOARD
+                    "reply_markup": msg.get("reply_markup") or REPLY_KEYBOARD,
+                    "disable_web_page_preview": True
                 }
 
                 resp = await client.post(url, json=payload)
@@ -165,6 +166,52 @@ async def main():
                         {"type": "text", "content": "Payment successful ✅ Your order has been placed!"},
                         WORKER_ID,
                         "stripe_webhook"
+                    )
+
+                    continue
+
+                if data.get("type") == "coinbase_webhook":
+
+                    thread_id = data.get("thread_id")
+                    payment_id = ObjectId(data.get("payment_id"))
+
+                    # 1️⃣ Mark payment complete
+                    await update_payment_attempt(
+                        payment_id,
+                        business_id,
+                        {
+                            "stage": "completed",
+                            "tx_hash": data.get("tx_hash"),
+                            "paid_at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+
+                    payment_doc = await payments(business_id).find_one({"_id": payment_id})
+
+                    # 2️⃣ Create order
+                    await create_order({
+                        "business_id": business_id,
+                        "thread_id": thread_id,
+                        "payment_id": payment_id,
+                        "cart_snapshot": payment_doc.get("cart_snapshot"),
+                        "email": payment_doc.get("email"),
+                        "address": payment_doc.get("address"),
+                        "country": payment_doc.get("country"),
+                        "amount": payment_doc.get("amount"),
+                        "currency": payment_doc.get("currency"),
+                    })
+
+                    # 3️⃣ Clear cart
+                    cart = await load_cart(thread_id, business_id)
+                    clear_cart(cart)
+                    await save_cart(cart)
+
+                    # 4️⃣ Send Telegram confirmation
+                    await send_telegram_message(
+                        int(thread_id),
+                        {"type": "text", "content": "Payment successful ✅ Your order has been placed!"},
+                        WORKER_ID,
+                        "coinbase_webhook"
                     )
 
                     continue

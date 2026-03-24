@@ -1,45 +1,62 @@
-# create_onramp_link.py
-import os, time, jwt, requests
+import os
+import time
+import jwt
+import requests
 from dotenv import load_dotenv
-from cdp.auth.utils.jwt import generate_jwt, JwtOptions
 load_dotenv()
 
-API_ID = os.getenv("COINBASE_API_ID")
-PRIVATE_KEY = os.getenv("COINBASE_API_PRIVATE_KEY").replace("\\n", "\n")
+api_key_id = os.getenv("COINBASE_API_ID")
+api_key_secret = os.getenv("COINBASE_API_PRIVATE_KEY").replace("\\n", "\n")
+BUSINESS_ADDRESS = os.getenv("BUSINESS_ADDRESS")
 
-def create_onramp_session():
-    # 1️⃣ Create JWT for authentication
-    payload = {"sub": API_ID, "iat": int(time.time())}
-    token = generate_jwt(JwtOptions(
-    api_key_id=API_ID,
-    api_key_secret=PRIVATE_KEY,
-    request_method="POST",
-    request_host="api.cdp.coinbase.com",
-    request_path="/platform/v2/onramp/sessions",
+def generate_coinbase_jwt(method, host, path):
+    
+    now = int(time.time())
 
-    expires_in=120  # optional (defaults to 120 seconds)
-    ))
-    print(token)
-    url = "https://api.cdp.coinbase.com/platform/v2/onramp/sessions"
+    payload = {
+        "sub": api_key_id,
+        "iss": "cdp",
+        "nbf": now,
+        "exp": now + 120,
+        "uri": f"{method} {host}{path}"
+    }
+
+    token = token = jwt.encode(
+        payload,
+        api_key_secret,
+        algorithm="ES256",
+        headers={
+            "kid": api_key_id
+        }
+    )
+    return token
+
+
+def create_onramp_session(payment_amount, thread_id, payment_id):
+    host = "api.cdp.coinbase.com"
+    path = "/platform/v2/onramp/sessions"
+    method = "POST"
+
+    token = generate_coinbase_jwt(method, host, path)
+    url = f"https://{host}{path}"
+
+    payload = {
+        "purchaseCurrency": "EURC",
+        "destinationNetwork": "solana",
+        "destinationAddress": BUSINESS_ADDRESS,
+        "paymentAmount": str(payment_amount),
+        "paymentCurrency": "EUR",
+        "paymentMethod": "CARD",
+        "country": "IE",
+        "subdivision": "L",
+        "redirectUrl": "https://t.me/AmfaCosmeticsBot",
+        "partnerUserRef": f"{thread_id}:{payment_id}"
+    }
 
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
 
-    body = {
-    "purchaseCurrency": "USDC",
-    "destinationNetwork": "solana",
-    "destinationAddress": "8hwTWjptyobR8godtYv2iG6YVnHBixhZGxnrbd4pHfCd",
-    "paymentAmount": "5",
-    "paymentCurrency": "EUR",
-    }
-
-    # 3️⃣ Send API call
-    response = requests.post(url, json=body, headers=headers)
-    data = response.json()
-    print(data)
-
-
-if __name__ == "__main__":
-    create_onramp_session()
+    response = requests.post(url, json=payload, headers=headers)
+    return response.json()
