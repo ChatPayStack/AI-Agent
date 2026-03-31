@@ -797,8 +797,8 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             "message": "Do you already have stablecoins on Solana?",
             "data": {
                 "inline_buttons": [
-                    [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}],
-                    [{"text": "💶 Pay with EURC", "callback_data": "eurc"}]
+                    [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}]
+                    #[{"text": "💶 Pay with EURC", "callback_data": "eurc"}]
                 ]
             },
         }
@@ -907,7 +907,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
-
+        '''
         if user_text == "eurc":
 
             # 🔑 Use thread_id as user_id
@@ -915,7 +915,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
 
             amount = latest.get("total_amount")
             
-            onramp = create_onramp_session(amount,thread_id,str(latest["_id"]))
+            onramp = create_onramp_session("2",thread_id,str(latest["_id"]))
             onramp_url = onramp.get("session", {}).get("onrampUrl")
             
 
@@ -940,6 +940,8 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
+
+        '''
         '''
         if user_text == "crypto_no":
 
