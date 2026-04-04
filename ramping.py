@@ -32,7 +32,7 @@ def generate_coinbase_jwt(method, host, path):
     return token
 
 
-def create_onramp_session(payment_amount, thread_id, payment_id):
+def create_onramp_session(payment_amount, thread_id, payment_id, wallet_address):
     host = "api.cdp.coinbase.com"
     path = "/platform/v2/onramp/sessions"
     method = "POST"
@@ -43,7 +43,7 @@ def create_onramp_session(payment_amount, thread_id, payment_id):
     payload = {
         "purchaseCurrency": "EURC",
         "destinationNetwork": "solana",
-        "destinationAddress": BUSINESS_ADDRESS,
+        "destinationAddress": wallet_address,  # ✅ user wallet
         "paymentAmount": str(payment_amount),
         "paymentCurrency": "EUR",
         "paymentMethod": "CARD",
@@ -59,4 +59,26 @@ def create_onramp_session(payment_amount, thread_id, payment_id):
     }
 
     response = requests.post(url, json=payload, headers=headers)
+    print(response.json())
     return response.json()
+'''
+if __name__ == "__main__":
+    import uuid
+
+    # Fake test values
+    test_amount = "10"  # €10
+    test_thread_id = "test-user"
+    test_payment_id = str(uuid.uuid4())
+
+    test_wallet_address = "6bGcrWXmdjsy2eRBntQDyY49AnFdbtBpKkZe5Zbyutf3"
+
+    result = create_onramp_session(
+        test_amount,
+        test_thread_id,
+        test_payment_id,
+        test_wallet_address
+    )
+
+    print("\nFINAL RESULT:")
+    print(result)
+'''

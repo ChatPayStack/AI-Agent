@@ -746,7 +746,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
 
         envelope = {
             "type": "payments",
-            "message": "Please enter your full shipping address. The delivery cost is added to your total based on your address.",
+            "message": "Please enter your shipping address. If you live in Ireland just enter your Eirecode. The delivery cost is added to your total based on your address.",
             "data": None,
         }
 
@@ -758,7 +758,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
     if latest and latest.get("stage") == "awaiting_address":
 
         geo = await geocode_address(user_text)
-        allowed, reason = is_allowed_location(geo)
+        allowed, reason = await is_allowed_location(geo)
 
         if not allowed:
             envelope = {
@@ -794,7 +794,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
 
         envelope = {
             "type": "payments",
-            "message": "Do you already have stablecoins on Solana?",
+            "message": "Tap below to pay securely with your card.",
             "data": {
                 "inline_buttons": [
                     [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}]

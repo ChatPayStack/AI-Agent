@@ -160,18 +160,32 @@ def orders(business_id: str):
     return db["orders"]
 
 async def get_categories(business_id: str) -> List[Dict[str, Any]]:
-    """
-    Returns all categories for a business.
-    """
-    db: AsyncIOMotorDatabase = get_db()
+    db = get_db()
 
-    cursor = db.categories.find({}, {"_id": 0})
+    cursor = db.categories.find(
+        {"business_id": business_id},
+        {"_id": 0}
+    )
+
     categories = []
-
     async for doc in cursor:
         categories.append(doc)
 
     return categories
+
+async def get_allowed_countries(business_id: str) -> List[str]:
+    db = get_db()
+
+    doc = await db.countries.find_one(
+        {"business_id": business_id},
+        {"_id": 0, "allowed_countries": 1}
+    )
+
+    if not doc:
+        return []
+
+    return doc.get("allowed_countries", [])
+    
 '''
 if __name__ == "__main__":
     async def _main():

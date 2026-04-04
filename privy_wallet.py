@@ -25,7 +25,7 @@ PRIVY_ID = os.getenv("PRIVY_ID")
 PRIVY_WALLET_URL = os.getenv("PRIVY_WALLET_URL")
 MAINNET_RPC_URL = os.getenv("MAINNET_RPC_URL")
 PAYER_ADDRESS = os.getenv("PAYER_ADDRESS")
-MINT_ADDRESS = os.getenv("USDC_MINT_ADDRESS")
+MINT_ADDRESS = os.getenv("EURC_MINT_ADDRESS")
 WALLET_ID = os.getenv("WALLET_ID")
 
 def _short(x: str | None, n: int = 6) -> str:
@@ -140,7 +140,7 @@ async def create_privy_wallet(id: str) -> str:
 
     if record and record.get("address") and record.get("wallet_id"):
         print("[pay] create_wallet already_exists", {"id": short_id, "address": _short(record.get("address"))})
-        return "User already has a wallet " + record["address"]
+        return record["address"]
 
     auth_string = f"{PRIVY_ID}:{PRIVY_SECRET}"
     encoded_auth = base64.b64encode(auth_string.encode()).decode()
@@ -170,7 +170,7 @@ async def create_privy_wallet(id: str) -> str:
         "wallet_id": _short(response_json.get("id")),
     })
 
-    # Create USDC ATA for new wallet (sponsored via configured WALLET_ID payer)
+    # Create EURC ATA for new wallet (sponsored via configured WALLET_ID payer)
     try:
         res = build_create_ata_tx_base64(
             payer_address=PAYER_ADDRESS,

@@ -182,6 +182,7 @@ async def rag_answer(
 
     prompt = (
         f"You are a store assistant. Tone: {tone}.\n"
+        "Always speak as the store using first-person plural (we/us/our). Never refer to the store as 'they'.\n\n"
         f"Do:\n{do_rules}\n\n"
         f"Don't:\n{dont_rules}\n\n"
         "Use ONLY the provided context. If the answer isn't in the context, say you don't know.\n\n"
@@ -244,6 +245,7 @@ async def rag_chat_answer(
 
     prompt = (
         f"You are a store assistant. Tone: {tone}.\n"
+        "Always speak as the store using first-person plural (we/us/our). Never refer to the store as 'they'.\n\n"
         f"Do:\n{do_rules}\n\n"
         f"Don't:\n{dont_rules}\n\n"
         "Use ONLY the provided CONTEXT for factual claims about the store/products.\n"
@@ -307,12 +309,13 @@ async def rag_message(
     convo = _fmt_last_messages(last_messages or [], limit=10)
 
     prompt = (
-        f"You are a skincare store assistant. Tone: {tone}.\n"
+        f"You are a  store assistant. Tone: {tone}.\n"
         f"Do:\n{do_rules}\n\n"
         f"Don't:\n{dont_rules}\n\n"
 
         "Rules:\n"
         "- Use ONLY the provided CONTEXT for factual claims about products.\n"
+        "- Always speak as the store using first-person plural (we/us/our). Never refer to the store as 'they'.\n\n"
         "- Use CONVERSATION HISTORY to understand follow-up questions and user needs.\n"
         "- Do NOT simply repeat the product description unless asked.\n"
         "- If comparing products, explain differences clearly.\n"

@@ -108,14 +108,14 @@ async def send_telegram_message(chat_id: int, msg: dict, worker_id: str, trace_i
 
 async def main():
     print(f"[{WORKER_ID}] started")
-    print(f"[{WORKER_ID}] listening on chatpay_queue")
+    print(f"[{WORKER_ID}] listening on chatpay_queue_{business_id}")
 
     connect_mongo()
     await build_keyboard()
 
     try:
         while True:
-            task = r.blpop("chatpay_queue", timeout=1)
+            task = r.blpop(f"chatpay_queue_{business_id}", timeout=1)
             if not task:
                 continue
 

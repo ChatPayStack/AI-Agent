@@ -1,13 +1,12 @@
 import os
 import httpx
 from dotenv import load_dotenv
+from db import get_allowed_countries
 
 load_dotenv()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
-
-ALLOWED_COUNTRIES = {"Ireland", "United Kingdom"}
-
+BUSINESS_ID = os.getenv("BUSINESS_ID")
 
 async def geocode_address(address: str) -> dict | None:
     url = "https://maps.googleapis.com/maps/api/geocode/json"
@@ -47,15 +46,19 @@ async def geocode_address(address: str) -> dict | None:
     }
 
 
-def is_allowed_location(geo: dict) -> tuple[bool, str]:
+async def is_allowed_location(geo: dict) -> tuple[bool, str]:
     if not geo:
         return False, "Address could not be verified."
 
-    if geo["country"] not in ALLOWED_COUNTRIES:
+    allowed_countries = await get_allowed_countries(BUSINESS_ID)
+
+    if not allowed_countries:
+        return False, "Shipping is currently unavailable."
+
+    if geo["country"] not in allowed_countries:
         return False, "We don't ship to that country."
 
     return True, "OK"
-
 
 # -----------------------
 # TEST BLOCK
