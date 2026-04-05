@@ -124,7 +124,7 @@ async def main():
             try:
                 data = json.loads(raw)
                 if data.get("type") == "stripe_webhook":
-
+                    print("Reaching here")
                     metadata = data.get("metadata", {})
                     thread_id = metadata.get("thread_id")
                     payment_id = ObjectId(metadata.get("payment_id"))

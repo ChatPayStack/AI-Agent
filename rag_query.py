@@ -9,6 +9,7 @@ from db import get_db
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage
 from llm_wrapper import call_llm
+import re
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -27,6 +28,40 @@ def _cosine(a: List[float], b: List[float]) -> float:
         nb += y * y
     denom = math.sqrt(na) * math.sqrt(nb)
     return dot / denom if denom else 0.0
+
+def normalize(text: str):
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9 ]", " ", text)
+    return text.strip()
+
+
+def extract_collection_filter(question: str, categories):
+    q = normalize(question)
+    q_tokens = set(q.split())
+
+    best_match = None
+    best_score = 0
+
+    for c in categories:
+        title = c.get("title") or ""
+        norm_title = normalize(title)
+
+        title_tokens = set(norm_title.replace("collection", "").split())
+
+        overlap = len(q_tokens & title_tokens)
+
+        # number equivalence (minimal + safe)
+        number_map = {"1": "one", "2": "two", "3": "three"}
+
+        for q_token in q_tokens:
+            if q_token in number_map and number_map[q_token] in title_tokens:
+                overlap += 1
+
+        if overlap > best_score:
+            best_score = overlap
+            best_match = title
+
+    return best_match if best_score > 0 else None
 
 def _fmt_last_messages(last_messages: List[Dict[str, str]], limit: int = 10) -> str:
     msgs = last_messages[-limit:] if limit else last_messages
@@ -67,10 +102,21 @@ async def rag_search(
         "price": 1,
         "description": 1,
         "asset_ids": 1,
+        "category": 1,
         "product_index": 1,
     }
 
-    cursor = db["vectors"].find({"business_id": business_id}, projection)
+    categories = await db["categories"].find(
+    {"business_id": business_id}
+    ).to_list(length=100)
+
+    collection_filter = extract_collection_filter(question, categories)
+
+    query_filter = {"business_id": business_id}
+    if collection_filter:
+        query_filter["category"] = collection_filter
+
+    cursor = db["vectors"].find(query_filter, projection)
     vecs = await cursor.to_list(length=20_000)
 
     scored = []
@@ -96,6 +142,7 @@ async def rag_search(
                 {
                     "type": "product",
                     "score": score,
+                    "category": v.get("category"),
                     "product_index": v.get("product_index"),
                     "name": v.get("name"),
                     "price": v.get("price"),
@@ -349,8 +396,8 @@ if __name__ == "__main__":
     async def _main():
         connect_mongo()
         try:
-            business_id = "a9c45c68-b370-4a5b-949f-1ee4f83854f2"
-            question = "What do you sell?"
+            business_id = "1c1d2f01-c889-4021-828e-688b482f1c2d"
+            question = "Give all products in collection 1"
 
             out = await rag_search(
                 business_id=business_id,
@@ -363,3 +410,4 @@ if __name__ == "__main__":
 
     asyncio.run(_main())
 '''
+
