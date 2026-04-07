@@ -100,7 +100,13 @@ async def send_telegram_message(chat_id: int, msg: dict, worker_id: str, trace_i
 
             # 🔥 Extract message_id
             data = resp.json()
-            return data.get("result", {}).get("message_id")
+            result = data.get("result", {})
+
+            if msg["type"] == "photo":
+                file_id = result.get("photo", [{}])[-1].get("file_id")
+                return file_id
+
+            return result.get("message_id")
 
     except Exception as e:
         print(f"[{worker_id}] SEND ERROR: {repr(e)}")
@@ -120,13 +126,10 @@ async def main():
                 continue
 
             _, raw = task
-            print("Raw:",raw)
 
             try:
                 data = json.loads(raw)
                 if data.get("type") == "stripe_webhook":
-                    print("Reaching here")
-                    print(data)
                     metadata = data.get("metadata", {})
                     thread_id = metadata.get("thread_id")
                     payment_id = ObjectId(metadata.get("payment_id"))
@@ -239,6 +242,7 @@ async def main():
 
                     continue
                 reply_text = None
+                reply_product_id = None
                 callback = data.get("callback_query")
 
                 if callback:
@@ -251,6 +255,12 @@ async def main():
                         continue
 
                     reply = message.get("reply_to_message")
+                    if reply and "photo" in reply:
+                        file_id = reply["photo"][-1]["file_id"]
+
+                        product_id = r.get(f"img:{business_id}:{file_id}")
+                        reply_product_id=product_id
+                        print("🧠 User replied to product:", product_id)
                     reply_text = reply.get("text") if reply else None
 
                     user_id = message["from"]["id"]
@@ -270,7 +280,8 @@ async def main():
                     text=user_text,
                     business_id=business_id,
                     turn_id=turn_id,
-                    reply_to_text=reply_text
+                    reply_to_text=reply_text,
+                    reply_to_product=reply_product_id
                 )
 
                 print(f"[{WORKER_ID}] agent_response={response}")
@@ -283,15 +294,23 @@ async def main():
                 payment_message_ids = []
 
                 for msg in messages:
-                    mid = await send_telegram_message(
+                    res = await send_telegram_message(
                         chat_id=chat_id,
                         msg=msg,
                         worker_id=WORKER_ID,
                         trace_id=str(data.get("update_id"))
                     )
+                    
+                    if msg["type"] == "photo" and msg.get("meta", {}).get("product_id") and res:
+                        file_id = res  # ✅ now real Telegram file_id
+                        product_id = msg["meta"]["product_id"]
 
-                    if msg.get("meta", {}).get("payment_ui") and mid:
-                        payment_message_ids.append(mid)
+                        r.setex(f"img:{business_id}:{file_id}", 7200, product_id)
+
+                        print("STORING:", file_id, product_id)
+
+                    if msg.get("meta", {}).get("payment_ui") and res:
+                        payment_message_ids.append(res)
 
                 # 2️⃣ THEN WAIT FOR PAYMENT (if required)
                 if (

@@ -139,7 +139,8 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
             if assets:
                 out.append({
                     "type": "photo",
-                    "content": assets[0]
+                    "content": assets[0],
+                    "meta": { "product_id": p.get("name") }
                 })
 
             # 2️⃣ Build card text
@@ -180,6 +181,7 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
                 out.append({
                     "type": "photo",
                     "content": assets[0],
+                    "meta": { "product_id": p.get("name") }
                 })
 
         # 2️⃣ Then message text

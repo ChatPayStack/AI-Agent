@@ -174,13 +174,25 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
             break
 
     reply_context = None
+    reply_product=None
     for m in state["messages"]:
+        if isinstance(m, SystemMessage) and "exact product by image" in m.content:
+            reply_product = m.content.split("exact product by image:")[-1].strip()
+            break
         if isinstance(m, SystemMessage) and "replying to this previous assistant message" in m.content:
             reply_context = m.content
             break
 
     if reply_context:
         question = f"{question}\n\nContext (user reply target):\n{reply_context}"
+    
+    if reply_product:
+        question = f"""
+        The user is referring EXACTLY to this product:
+        {reply_product}
+
+        Resolve details, pricing, and info ONLY for this product.
+        """
 
     search = await rag_search(
         business_id=business_id,
@@ -797,8 +809,8 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             "message": "Tap below to pay securely with your card.",
             "data": {
                 "inline_buttons": [
-                    [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}]
-                    #[{"text": "💶 Pay with EURC", "callback_data": "eurc"}]
+                    [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}],
+                    [{"text": "💶 Pay with EURC", "callback_data": "eurc"}]
                 ]
             },
         }
@@ -907,61 +919,19 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
-        '''
+        
         if user_text == "eurc":
 
-            # 🔑 Use thread_id as user_id
-            user_id = thread_id
-
-            amount = latest.get("total_amount")
-            
-            onramp = create_onramp_session("2",thread_id,str(latest["_id"]))
-            onramp_url = onramp.get("session", {}).get("onrampUrl")
-            
-
-            # Optional: update payment attempt (just tagging, no flow change)
-            await update_payment_attempt(
-                latest["_id"],
-                business_id,
-                {
-                    "payment_method": "chatpay",
-                    "onramp_url": onramp_url,
-                    "stage": "awaiting_onramp_payment"
-                },
-            )
-
             envelope = {
                 "type": "payments",
-                "message": f"Complete your payment using card. EURC will be sent securely.\n\n{onramp_url}",
-                "data": {
-                    "onramp": True,
-                    "url": onramp_url
-                },
-            }
-
-            return {"messages": [AIMessage(content=json.dumps(envelope))]}
-
-        '''
-        '''
-        if user_text == "crypto_no":
-
-            await update_payment_attempt(
-                latest["_id"],
-                business_id,
-                {
-                    "stage": "not_configured",
-                    "crypto_choice": "no",
-                },
-            )
-
-            envelope = {
-                "type": "payments",
-                "message": "Onramping not configured yet.",
+                "message": "EURC not configured yet.",
                 "data": None,
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
-        '''
+
+        
+        
     # =====================================================
     # Fallback
     # =====================================================
@@ -1081,6 +1051,7 @@ async def chat_turn(
     business_id: Optional[str] = None,
     history_limit: int = 20,
     reply_to_text: Optional[str] = None,
+    reply_to_product: Optional[str] = None
 ) -> str:
     business_id = business_id or DEFAULT_BUSINESS_ID
 
@@ -1108,7 +1079,14 @@ async def chat_turn(
                 SystemMessage(
                     content=f"The user is replying to this previous assistant message:\n{reply_to_text}"
                 )
-            )    
+            )
+    if reply_to_product:
+        print("Product Rely Here:",reply_to_product)
+        msgs.append(
+            SystemMessage(
+                content=f"The user is referring to this exact product by image: {reply_to_product}"
+            )
+        )    
 
     out = await graph.ainvoke(
         {"thread_id": thread_id, "business_id": business_id, "messages": msgs,"turn_id": turn_id},
