@@ -171,18 +171,26 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
         products = data.get("products") or []
 
         # 1️⃣ Images first
-        for p in products:
-            confidence = float(p.get("confidence") or 0.0)
-            if confidence < CONFIDENCE_THRESHOLD:
+        for i, p in enumerate(products):
+            assets = p.get("suggested_asset_ids") or []
+            if not assets:
                 continue
 
-            assets = p.get("suggested_asset_ids") or []
-            if assets:
+            if i < 2:
                 out.append({
                     "type": "photo",
                     "content": assets[0],
-                    "meta": { "product_id": p.get("name") }
+                    "meta": {"product_id": p.get("name")}
                 })
+            else:
+                # Remaining products → apply confidence filter
+                confidence = float(p.get("confidence") or 0.0)
+                if confidence >= CONFIDENCE_THRESHOLD:
+                    out.append({
+                        "type": "photo",
+                        "content": assets[0],
+                        "meta": {"product_id": p.get("name")}
+                    })
 
         # 2️⃣ Then message text
         out.append({

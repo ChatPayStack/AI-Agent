@@ -68,7 +68,9 @@ if not OPENAI_API_KEY:
 DEFAULT_BUSINESS_ID = os.getenv("BUSINESS_ID", "UNKNOWN_BUSINESS")
 LOCAL_STORE_DIR = os.getenv("LOCAL_STORE_DIR", "./local_conversations")
 NOT_READY_TEXT = os.getenv("NOT_READY_TEXT", "no payments yet")
-
+PAYMENT_ADDRESS = os.getenv("PAYMENT_ADDRESS")
+BUSINESS_ADDRESS = os.getenv("BUSINESS_ADDRESS")
+EURC_MINT = os.getenv("EURC_MINT_MAINNET")
 RECENT_ENTITIES: dict[str, list[dict]] = {}
 # ----------------------------
 # Local conversation storage (JSONL per thread)
@@ -811,7 +813,8 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
                 "inline_buttons": [
                     [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}],
                     [{"text": "💶 Pay with EURC", "callback_data": "eurc"}]
-                ]
+                ],
+                "awaiting_payment": True
             },
         }
 
@@ -922,10 +925,53 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
         
         if user_text == "eurc":
 
+            if not PAYMENT_ADDRESS or not BUSINESS_ADDRESS or not EURC_MINT:
+                envelope = {
+                    "type": "payments",
+                    "message": "Payment configuration error.",
+                    "data": None,
+                }
+                return {"messages": [AIMessage(content=json.dumps(envelope))]}
+
+            # --- Generate reference ---
+            reference_kp = Keypair()
+            reference = str(reference_kp.pubkey())
+
+            # --- Amount ---
+            amount = str(latest.get("total_amount"))
+
+            # --- Build URL ---
+            pay_url = (
+                f"{PAYMENT_ADDRESS}"
+                f"?address={BUSINESS_ADDRESS}"
+                f"&amount={amount}"
+                f"&token={EURC_MINT}"
+                f"&reference={reference}"
+            )
+
+            # --- Update DB ---
+            await update_payment_attempt(
+                latest["_id"],
+                business_id,
+                {
+                    "stage": "awaiting_payment",
+                    "payment_method": "eurc",
+                    "reference": reference,
+                    "amount": amount,
+                    "pay_url": pay_url,
+                },
+            )
+
+            # --- Return envelope ---
             envelope = {
                 "type": "payments",
-                "message": "EURC not configured yet.",
-                "data": None,
+                "message": f"Complete your payment:\n{pay_url}\n\nYou have 5 minutes.",
+                "data": {
+                    "awaiting_payment": True,
+                    "reference": reference,
+                    "amount": amount,
+                    "payment_id": str(latest["_id"]),
+                },
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}

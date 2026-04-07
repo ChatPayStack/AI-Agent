@@ -370,6 +370,8 @@ async def rag_message(
         "- Prioritize reasoning over copying.\n"
         "- Be concise but persuasive.\n"
         "- If answer isn't in CONTEXT, say you don't know.\n\n"
+        "- Each product may have images available."
+        "- Do NOT include image URLs or markdown images."
 
         f"CONVERSATION HISTORY (last 10):\n{convo}\n\n"
         f"USER QUESTION:\n{question}\n\n"
