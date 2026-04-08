@@ -117,7 +117,7 @@ async def rag_search(
         query_filter["category"] = collection_filter
 
     cursor = db["vectors"].find(query_filter, projection)
-    vecs = await cursor.to_list(length=20_000)
+    vecs = await cursor.to_list(length=2000)
 
     scored = []
     for v in vecs:

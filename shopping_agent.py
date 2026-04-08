@@ -162,6 +162,39 @@ async def route_intent(state: State) -> str:
     allowed = {"enquiry", "cart_add", "cart_remove", "cart_view", "cart_clear", "payments", "chitchat"}
     return label if label in allowed else "chitchat"
 
+async def select_assets(product: dict, question: str, llm) -> list[str]:
+    assets = product.get("asset_ids") or []
+    if not assets:
+        return []
+
+    prompt = f"""
+    Pick the most relevant image IDs for this query.
+
+    Query: {question}
+
+    Product:
+    Name: {product.get('name')}
+    Description: {product.get('description')}
+
+    Available image IDs:
+    {assets}
+
+    Rules:
+    - Return max 2 IDs
+    - Prefer most relevant to query intent
+    - Return ONLY JSON list
+
+    Example:
+    ["img2"]
+    """
+
+    resp = await llm.ainvoke(prompt)
+
+    try:
+        import json
+        return json.loads(resp.content)
+    except:
+        return assets[:1]
 
 # ----------------------------
 # Enquiry agent
@@ -205,6 +238,18 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
     best = search.get("best_product")
     product_matches = search.get("product_matches", []) or []
     info_matches = search.get("info_matches", []) or []
+
+    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+
+    # Ensure best product also has it
+    if best:
+        selected = await select_assets(best, question, llm)
+        best["suggested_asset_ids"] = selected
+
+        # ensure consistency if best appears in list
+        for p in product_matches:
+            if p is best:
+                p["suggested_asset_ids"] = selected
 
     def _confidence_from_score(score: float) -> float:
         if score is None:
@@ -812,7 +857,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             "data": {
                 "inline_buttons": [
                     [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}],
-                    [{"text": "💶 Pay with EURC", "callback_data": "eurc"}]
+                  #  [{"text": "💶 Pay with EURC", "callback_data": "eurc"}]
                 ],
                 "awaiting_payment": True
             },
@@ -922,7 +967,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             }
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
-        
+        '''
         if user_text == "eurc":
 
             if not PAYMENT_ADDRESS or not BUSINESS_ADDRESS or not EURC_MINT:
@@ -976,7 +1021,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
 
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
 
-        
+        '''
         
     # =====================================================
     # Fallback
