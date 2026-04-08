@@ -399,7 +399,7 @@ if __name__ == "__main__":
         connect_mongo()
         try:
             business_id = "1c1d2f01-c889-4021-828e-688b482f1c2d"
-            question = "Give all products in collection 1"
+            question = "All Products"
 
             out = await rag_search(
                 business_id=business_id,

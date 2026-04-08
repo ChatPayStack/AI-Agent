@@ -56,6 +56,10 @@ from privy_wallet import create_privy_wallet
 
 from ramping import create_onramp_session
 
+from db import get_db
+
+import random
+
 load_dotenv()
 
 # ----------------------------
@@ -93,6 +97,7 @@ class State(TypedDict, total=False):
     thread_id: str
     business_id: str
     turn_id: str
+    is_first_message: bool 
 
 
 # ----------------------------
@@ -207,6 +212,87 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
         if isinstance(m, HumanMessage):
             question = (m.content or "").strip()
             break
+    if state.get("is_first_message"):
+        
+
+        db = get_db()
+
+        projection = {
+            "name": 1,
+            "price": 1,
+            "description": 1,
+            "asset_ids": 1,
+            "chunk_id": 1,
+            "category": 1,
+            "product_index": 1,
+        }
+
+        # 1. Fetch categories
+        categories = await db["categories"].find(
+            {"business_id": business_id}
+        ).to_list(length=10)
+
+        if not categories:
+            # fallback (no categories)
+            cursor = db["vectors"].find(
+                {"business_id": business_id, "type": "product"},
+                projection=projection
+            )
+            products = await cursor.to_list(length=5)
+
+        else:
+            # 2. Pick top 3 categories
+            selected_categories = categories[:3]
+
+            products = []
+
+            # 3. Fetch 2 products per category
+            for c in selected_categories:
+                cursor = db["vectors"].find(
+                    {
+                        "business_id": business_id,
+                        "type": "product",
+                        "category": c.get("title")
+                    },
+                    projection=projection
+                )
+
+                items = await cursor.to_list(length=5)
+
+                if items:
+                    random.shuffle(items)
+                    products.extend(items[:2])
+
+        # 4. Format products
+        def _to_product_obj(p):
+            return {
+                "name": p.get("name"),
+                "price": p.get("price"),
+                "description": p.get("description"),
+                "confidence": 1.0,
+                "source_chunk_id": p.get("chunk_id"),
+                "source_file_id": None,
+                "page_or_slide": None,
+                "suggested_asset_ids": p.get("asset_ids") or [],
+            }
+
+        formatted_products = [_to_product_obj(p) for p in products[:6]]
+
+        # 5. Build response
+        envelope = {
+            "type": "enquiry",
+            "message": "Tap a product or ask me for details.",
+            "data": {
+                "result_type": "products",
+                "products": formatted_products
+            },
+        }
+
+        return {
+            "messages": [
+                AIMessage(content=json.dumps(envelope, ensure_ascii=False))
+            ]
+        }
 
     reply_context = None
     reply_product=None
@@ -1103,6 +1189,8 @@ builder.add_node("chitchat", chitchat_agent_node)
 
 
 async def _route(state: State) -> str:
+    if state.get("is_first_message"):
+        return "enquiry" 
     return await route_intent(state)
 
 
@@ -1158,6 +1246,7 @@ async def chat_turn(
         thread_id=thread_id,
         limit=history_limit,
     )
+    is_first_message = len(last) <= 1
     msgs: List[BaseMessage] = []
     for m in last:
         if m["role"] == "assistant":
@@ -1180,7 +1269,7 @@ async def chat_turn(
         )    
 
     out = await graph.ainvoke(
-        {"thread_id": thread_id, "business_id": business_id, "messages": msgs,"turn_id": turn_id},
+        {"thread_id": thread_id, "business_id": business_id, "messages": msgs,"turn_id": turn_id,"is_first_message": is_first_message},
         config={"configurable": {"thread_id": thread_id}},
     )
 
