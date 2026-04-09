@@ -638,6 +638,7 @@ async def cart_remove_node(state: State) -> Dict[str, Any]:
 
     cart = await load_cart(thread_id, business_id)
 
+    # ---- get user text ----
     user_text = ""
     for m in reversed(state["messages"]):
         if isinstance(m, HumanMessage):
@@ -663,46 +664,36 @@ async def cart_remove_node(state: State) -> Dict[str, Any]:
             }, ensure_ascii=False))]
         }
 
-    # 🔥 Step 1 — RAG resolve intent
-    search = await rag_search(
-        business_id=business_id,
-        question=target,
-        top_k=3,
-    )
-
-    best = search.get("best_product")
-
-    if not best:
-        safe_cart = serialize_cart(cart)
-        return {
-            "messages": [AIMessage(content=json.dumps({
-                "type": "cart",
-                "message": "I couldn’t find that product.",
-                "data": {"cart": safe_cart},
-            }, ensure_ascii=False))]
-        }
-
-    best_name = (best.get("name") or "").lower()
-
-    # 🔥 Step 2 — match AGAINST CART (source of truth)
     cart_items = cart.get("items", [])
     matched_item = None
 
+    # ✅ Step 1 — direct cart match (PRIMARY)
+    q = target.lower()
     for it in cart_items:
         name = (it.get("name") or "").lower()
-        if best_name in name or name in best_name:
+        if q in name or name in q:
             matched_item = it
             break
 
-    # 🔁 fallback: match using raw user query
+    # 🔁 Step 2 — RAG fallback
     if not matched_item:
-        q = target.lower()
-        for it in cart_items:
-            name = (it.get("name") or "").lower()
-            if q in name or name in q:
-                matched_item = it
-                break
+        search = await rag_search(
+            business_id=business_id,
+            question=target,
+            top_k=3,
+        )
 
+        best = search.get("best_product")
+
+        if best:
+            best_name = (best.get("name") or "").lower()
+            for it in cart_items:
+                name = (it.get("name") or "").lower()
+                if best_name in name or name in best_name:
+                    matched_item = it
+                    break
+
+    # ❌ still not found
     if not matched_item:
         safe_cart = serialize_cart(cart)
         return {
@@ -713,24 +704,20 @@ async def cart_remove_node(state: State) -> Dict[str, Any]:
             }, ensure_ascii=False))]
         }
 
-    # ✅ Step 3 — get correct chunk_id from cart
+    # ✅ Step 3 — remove using cart source of truth
     chunk_id = matched_item.get("product_ref", {}).get("source_chunk_id")
 
-    before = len(cart.get("items") or [])
     for it in cart["items"]:
         if it["product_ref"]["source_chunk_id"] == chunk_id:
             current_qty = it["qty"]
 
             if current_qty > 1:
-                # ✅ decrement properly (recomputes totals)
                 set_qty(cart, chunk_id, current_qty - 1)
                 msg = "Removed 1 item."
             else:
-                # ✅ remove completely
                 remove_item(cart, chunk_id)
                 msg = "Removed item."
             break
-    after = len(cart.get("items") or [])
 
     await save_cart(cart)
 
@@ -744,42 +731,61 @@ async def cart_remove_node(state: State) -> Dict[str, Any]:
         }, ensure_ascii=False))]
     }
 
-
 async def cart_add_node(state: State) -> Dict[str, Any]:
     thread_id = state["thread_id"]
     business_id = state.get("business_id") or DEFAULT_BUSINESS_ID
 
     cart = await load_cart(thread_id, business_id)
 
+    # ---- get user text ----
     user_text = ""
     for m in reversed(state["messages"]):
         if isinstance(m, HumanMessage):
             user_text = (m.content or "").strip()
             break
 
-    act = await extract_cart_action(user_text, business_id=business_id, thread_id=thread_id,turn_id=state["turn_id"],)
+    # ---- extract reply_to_product ----
+    reply_product = None
+    for m in state["messages"]:
+        if isinstance(m, SystemMessage) and "exact product by image" in m.content:
+            reply_product = m.content.split("exact product by image:")[-1].strip()
+            break
+
+    # ---- extract intent ----
+    act = await extract_cart_action(
+        user_text,
+        business_id=business_id,
+        thread_id=thread_id,
+        turn_id=state["turn_id"],
+    )
 
     query = act.get("query")
     qty = act.get("qty") or 1
 
+    # ---- PRIORITY 1: reply product (STRICT) ----
+    if reply_product:
+        query = reply_product
+
+    # ---- fallback ----
     if not query:
-        # ---- fallback to last referenced product ----
         entities = RECENT_ENTITIES.get(thread_id, [])
         if entities:
             query = entities[0]["name"]
         else:
             safe_cart = serialize_cart(cart)
-            envelope = {
-                "type": "cart",
-                "message": "What do you want to add?",
-                "data": {"cart": safe_cart},
+            return {
+                "messages": [AIMessage(content=json.dumps({
+                    "type": "cart",
+                    "message": "What do you want to add?",
+                    "data": {"cart": safe_cart},
+                }, ensure_ascii=False))]
             }
-            return {"messages": [AIMessage(content=json.dumps(envelope, ensure_ascii=False))]}
 
+    # ---- search ----
     search = await rag_search(
         business_id=business_id,
         question=query,
-        top_k=int(os.getenv("TOP_K", "6")),
+        top_k=1 if reply_product else int(os.getenv("TOP_K", "6")),
     )
 
     best = search.get("best_product")
@@ -789,31 +795,39 @@ async def cart_add_node(state: State) -> Dict[str, Any]:
     if not best and product_matches:
         best = product_matches[0]
 
+    # ---- SAFETY: prevent wrong variant ----
+    if reply_product and best:
+        if reply_product.lower() not in (best.get("name") or "").lower():
+            best = None
+
     product = _product_from_search(best, info_matches)
+
     if not product or not product.get("name"):
         safe_cart = serialize_cart(cart)
-        envelope = {
-            "type": "cart",
-            "message": "I couldn’t find that product. Try a slightly different name.",
-            "data": {"cart": safe_cart},
+        return {
+            "messages": [AIMessage(content=json.dumps({
+                "type": "cart",
+                "message": "I couldn’t find that product.",
+                "data": {"cart": safe_cart},
+            }, ensure_ascii=False))]
         }
-        return {"messages": [AIMessage(content=json.dumps(envelope, ensure_ascii=False))]}
 
+    # ---- add to cart ----
     if isinstance(product.get("price"), (int, float)):
         product["price"] = str(product["price"])
+
     add_item(cart, product, qty=int(qty))
     await save_cart(cart)
-    
 
     safe_cart = serialize_cart(cart)
-    envelope = {
-        "type": "cart",
-        "message": f"Added {int(qty)} × {product.get('name')} to your cart.",
-        "data": {"cart": safe_cart},
+
+    return {
+        "messages": [AIMessage(content=json.dumps({
+            "type": "cart",
+            "message": f"Added {int(qty)} × {product.get('name')} to your cart.",
+            "data": {"cart": safe_cart},
+        }, ensure_ascii=False))]
     }
-    return {"messages": [AIMessage(content=json.dumps(envelope, ensure_ascii=False))]}
-
-
 
 # ----------------------------
 # Payments node (kept as-is from your working version)
