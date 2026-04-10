@@ -328,14 +328,7 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
     print("BEST:", best)
     # Ensure best product also has it
-    if best:
-        selected = await select_assets(best, question, llm)
-        best["suggested_asset_ids"] = selected
-
-        # ensure consistency if best appears in list
-        for p in product_matches:
-            if p is best:
-                p["suggested_asset_ids"] = selected
+    
 
     def _confidence_from_score(score: float) -> float:
         if score is None:
@@ -394,10 +387,15 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
             "suggested_asset_ids": prov["suggested_asset_ids"],
         }
 
-    if best:
+    collection_filter = search.get("collection_filter")
+
+    if best and not collection_filter:
         data = {"result_type": "product", "product": _to_product_obj(best)}
     else:
-        data = {"result_type": "products", "products": [_to_product_obj(p) for p in product_matches]}
+        data = {
+            "result_type": "products",
+            "products": [_to_product_obj(p) for p in product_matches]
+        }
 
     last_messages = []
     for m in state["messages"][-10:]:

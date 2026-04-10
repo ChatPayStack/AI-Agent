@@ -1,4 +1,3 @@
-# rag_query.py
 import os
 import math
 from typing import List, Dict, Any
@@ -13,49 +12,36 @@ import re
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+# ----------------------------
+# Utils
+# ----------------------------
 
 def _embed_model() -> str:
     return os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 
 
 def _cosine(a: List[float], b: List[float]) -> float:
-    dot = 0.0
-    na = 0.0
-    nb = 0.0
-    for x, y in zip(a, b):
-        dot += x * y
-        na += x * x
-        nb += y * y
-    denom = math.sqrt(na) * math.sqrt(nb)
-    return dot / denom if denom else 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(x * x for x in b))
+    return dot / (na * nb) if na and nb else 0.0
+
 
 def normalize(text: str):
-    text = text.lower()
-    text = re.sub(r"[^a-z0-9 ]", " ", text)
-    return text.strip()
+    return re.sub(r"[^a-z0-9 ]", " ", text.lower()).strip()
 
 
 def extract_collection_filter(question: str, categories):
-    q = normalize(question)
-    q_tokens = set(q.split())
+    q_tokens = set(normalize(question).split())
 
     best_match = None
     best_score = 0
 
     for c in categories:
         title = c.get("title") or ""
-        norm_title = normalize(title)
-
-        title_tokens = set(norm_title.replace("collection", "").split())
+        title_tokens = set(normalize(title).replace("collection", "").split())
 
         overlap = len(q_tokens & title_tokens)
-
-        # number equivalence (minimal + safe)
-        number_map = {"1": "one", "2": "two", "3": "three"}
-
-        for q_token in q_tokens:
-            if q_token in number_map and number_map[q_token] in title_tokens:
-                overlap += 1
 
         if overlap > best_score:
             best_score = overlap
@@ -63,15 +49,10 @@ def extract_collection_filter(question: str, categories):
 
     return best_match if best_score > 0 else None
 
-def _fmt_last_messages(last_messages: List[Dict[str, str]], limit: int = 10) -> str:
-    msgs = last_messages[-limit:] if limit else last_messages
-    lines = []
-    for m in msgs:
-        role = (m.get("role") or "user").strip().lower()
-        content = (m.get("content") or "").strip()
-        if content:
-            lines.append(f"{role.upper()}: {content}")
-    return "\n".join(lines)
+
+# ----------------------------
+# RAG SEARCH
+# ----------------------------
 
 async def rag_search(
     *,
@@ -79,46 +60,44 @@ async def rag_search(
     question: str,
     top_k: int = 6,
 ) -> Dict[str, Any]:
+
     db = get_db()
 
-    # 1) embed query
+    # 1. Embed
     q_emb = client.embeddings.create(
         model=_embed_model(),
         input=[question],
     ).data[0].embedding
 
-    # 2) fetch vectors for this business (now includes typed metadata)
-    projection = {
-        "embedding": 1,
-        "type": 1,
-        "kind": 1,
-        "chunk_id": 1,
-        "file_id": 1,
-        "source_type": 1,
-        "chunk_index": 1,
-        "title": 1,
-        "text": 1,
-        "name": 1,
-        "price": 1,
-        "description": 1,
-        "asset_ids": 1,
-        "category": 1,
-        "product_index": 1,
-    }
-
+    # 2. Categories
     categories = await db["categories"].find(
-    {"business_id": business_id}
-    ).to_list(length=100)
+        {"business_id": business_id}
+    ).to_list(length=50)
 
     collection_filter = extract_collection_filter(question, categories)
+    is_collection_query = collection_filter is not None
 
     query_filter = {"business_id": business_id}
     if collection_filter:
         query_filter["category"] = collection_filter
 
-    cursor = db["vectors"].find(query_filter, projection)
-    vecs = await cursor.to_list(length=2000)
+    # 3. Fetch LIMITED vectors
+    projection = {
+        "embedding": 1,
+        "type": 1,
+        "name": 1,
+        "price": 1,
+        "description": 1,
+        "asset_ids": 1,
+        "chunk_id": 1,
+        "file_id": 1,
+        "title": 1,
+        "text": 1,
+    }
 
+    vecs = await db["vectors"].find(query_filter, projection).to_list(length=200)
+
+    # 4. Score
     scored = []
     for v in vecs:
         emb = v.get("embedding")
@@ -128,191 +107,51 @@ async def rag_search(
         scored.append((score, v))
 
     scored.sort(key=lambda x: x[0], reverse=True)
-    top = scored[: max(1, min(top_k, 50))]
+    top = scored[: (top_k if not is_collection_query else 12)]
 
     product_matches = []
     info_matches = []
 
     for score, v in top:
-        vtype = v.get("type") or ("product" if v.get("kind") == "product" else "info")
-
-        if vtype == "product":
-            
-            product_matches.append(
-                {
-                    "type": "product",
-                    "score": score,
-                    "category": v.get("category"),
-                    "product_index": v.get("product_index"),
-                    "name": v.get("name"),
-                    "price": v.get("price"),
-                    "description": v.get("description"),
-                    "asset_ids": v.get("asset_ids", []),
-                    "chunk_id": v.get("chunk_id"),
-                }
-            )
+        if v.get("type") == "product":
+            product_matches.append({
+                "score": score,
+                "name": v.get("name"),
+                "price": v.get("price"),
+                "description": v.get("description"),
+                "asset_ids": v.get("asset_ids", []),
+                "chunk_id": v.get("chunk_id"),
+            })
         else:
-            info_matches.append(
-                {
-                    "type": "info",
-                    "score": score,
-                    "title": v.get("title") or "Info",
-                    "description": v.get("text"),
-                    "chunk_id": v.get("chunk_id"),
-                    "file_id": v.get("file_id"),
-                    "source_type": v.get("source_type"),
-                    "chunk_index": v.get("chunk_index"),
-                }
-            )
+            info_matches.append({
+                "score": score,
+                "title": v.get("title"),
+                "description": v.get("text"),
+                "chunk_id": v.get("chunk_id"),
+                "file_id": v.get("file_id"),
+            })
 
-    # Pick best single product if it's clearly the winner
     best_product = None
-    if product_matches:
-        top1 = product_matches[0]
-        top2 = product_matches[1] if len(product_matches) > 1 else None
 
-        top1_score = top1["score"]
-        top2_score = top2["score"] if top2 else 0.0
-        gap = top1_score - top2_score
+    if not is_collection_query:
+        if len(product_matches) >= 1:
+            top1 = product_matches[0]
+            top2 = product_matches[1] if len(product_matches) > 1 else None
 
-        # Decision rule (tune later)
-        if top1_score >= 0.30 and gap >= 0.03:
-            best_product = top1
+            if top1["score"] >= 0.30 and (not top2 or (top1["score"] - top2["score"]) >= 0.03):
+                best_product = top1
 
     return {
-        "question": question,
         "best_product": best_product,
         "product_matches": product_matches,
         "info_matches": info_matches,
+        "collection_filter": collection_filter,
     }
 
 
-async def rag_answer(
-    *,
-    business_id: str,
-    question: str,
-    top_k: int = 6,
-    model: str = "gpt-4.1-mini",
-) -> Dict[str, Any]:
-    db = get_db()
-
-    search = await rag_search(business_id=business_id, question=question, top_k=top_k)
-
-    best_product = search.get("best_product")
-    product_matches = search["product_matches"]
-    info_matches = search["info_matches"]
-
-    print("Search:",search)
-
-    # pull agent config (optional)
-    cfg = await db["agent_config"].find_one({"_id": business_id}) or {}
-    tone = cfg.get("tone") or "helpful"
-    do_rules = cfg.get("do_instructions") or ""
-    dont_rules = cfg.get("dont_instructions") or ""
-
-    # Build context from BOTH types
-    ctx_parts = []
-
-    for i, m in enumerate(product_matches, start=1):
-        ctx_parts.append(
-            f"[Product {i} | score={m['score']:.3f}] "
-            f"{m.get('name')} | {m.get('price')}\n{m.get('description')}"
-        )
-
-    for i, m in enumerate(info_matches, start=1):
-        ctx_parts.append(
-            f"[Info {i} | score={m['score']:.3f}] "
-            f"{m.get('title')}\n{m.get('description')}"
-        )
-
-    context = "\n\n".join(ctx_parts)
-
-    prompt = (
-        f"You are a store assistant. Tone: {tone}.\n"
-        "Always speak as the store using first-person plural (we/us/our). Never refer to the store as 'they'.\n\n"
-        f"Do:\n{do_rules}\n\n"
-        f"Don't:\n{dont_rules}\n\n"
-        "Use ONLY the provided context. If the answer isn't in the context, say you don't know.\n\n"
-        f"QUESTION:\n{question}\n\n"
-        f"CONTEXT:\n{context}"
-    )
-
-    resp = client.responses.create(
-        model=model,
-        input=prompt,
-    )
-
-    output_text = getattr(resp, "output_text", None)
-    if not output_text:
-        output_text = resp.output[0].content[0].text
-
-    return {
-        "question": question,
-        "answer": output_text,
-        "best_product": best_product,
-        "product_matches": product_matches,
-        "info_matches": info_matches,
-    }
-
-async def rag_chat_answer(
-    *,
-    business_id: str,
-    question: str,
-    last_messages: List[Dict[str, str]],  # [{"role":"user"|"assistant", "content":"..."}]
-    top_k: int = 6,
-    model: str = "gpt-4.1-mini",
-) -> Dict[str, Any]:
-    # 1) retrieve (no LLM)
-    search = await rag_search(business_id=business_id, question=question, top_k=top_k)
-
-    best_product = search.get("best_product")
-    product_matches = search["product_matches"]
-    info_matches = search["info_matches"]
-
-    # 2) load agent config (optional)
-    db = get_db()
-    cfg = await db["agent_config"].find_one({"_id": business_id}) or {}
-    tone = cfg.get("tone") or "helpful"
-    do_rules = cfg.get("do_instructions") or ""
-    dont_rules = cfg.get("dont_instructions") or ""
-
-    # 3) build context
-    ctx_parts = []
-    for i, m in enumerate(product_matches, start=1):
-        ctx_parts.append(
-            f"[Product {i} | score={m['score']:.3f}] {m.get('name')} | {m.get('price')}\n{m.get('description')}"
-        )
-    for i, m in enumerate(info_matches, start=1):
-        ctx_parts.append(
-            f"[Info {i} | score={m['score']:.3f}] {m.get('title')}\n{m.get('description')}"
-        )
-    context = "\n\n".join(ctx_parts)
-
-    convo = _fmt_last_messages(last_messages, limit=10)
-
-    prompt = (
-        f"You are a store assistant. Tone: {tone}.\n"
-        "Always speak as the store using first-person plural (we/us/our). Never refer to the store as 'they'.\n\n"
-        f"Do:\n{do_rules}\n\n"
-        f"Don't:\n{dont_rules}\n\n"
-        "Use ONLY the provided CONTEXT for factual claims about the store/products.\n"
-        "Use CONVERSATION HISTORY only to understand what the user means by follow-ups (e.g., 'tell me more').\n"
-        "If the answer isn't in CONTEXT, say you don't know.\n\n"
-        f"CONVERSATION HISTORY (last 10):\n{convo}\n\n"
-        f"USER QUESTION:\n{question}\n\n"
-        f"CONTEXT:\n{context}"
-    )
-
-    resp = client.responses.create(model=model, input=prompt)
-    output_text = getattr(resp, "output_text", None) or resp.output[0].content[0].text
-
-    return {
-        "question": question,
-        "answer": output_text,
-        "best_product": best_product,
-        "product_matches": product_matches,
-        "info_matches": info_matches,
-    }
+# ----------------------------
+# RAG MESSAGE (FIXED)
+# ----------------------------
 
 async def rag_message(
     *,
@@ -324,59 +163,54 @@ async def rag_message(
     top_k: int = 6,
     model: str = "gpt-4.1-mini",
 ) -> Dict[str, Any]:
-    """
-    Returns a single grounded message string based ONLY on retrieved context.
-    Uses conversation history only to resolve follow-ups/ambiguity.
-    """
+
     db = get_db()
 
-    search = await rag_search(business_id=business_id, question=question, top_k=top_k)
+    # ✅ ONLY ONE SEARCH (no duplicate anymore)
+    search = await rag_search(
+        business_id=business_id,
+        question=question,
+        top_k=top_k,
+    )
 
-    product_matches = search.get("product_matches", []) or []
-    info_matches = search.get("info_matches", []) or []
+    product_matches = search.get("product_matches", [])
+    info_matches = search.get("info_matches", [])
 
     cfg = await db["agent_config"].find_one({"_id": business_id}) or {}
     tone = cfg.get("tone") or "helpful"
-    do_rules = cfg.get("do_instructions") or ""
-    dont_rules = cfg.get("dont_instructions") or ""
 
     ctx_parts = []
-    for i, m in enumerate(product_matches, start=1):
-        ctx_parts.append(
-            f"[Product {i} | score={m['score']:.3f}] "
-            f"{m.get('name')} | {m.get('price')}\n{m.get('description')}"
+
+    for m in product_matches:
+        ctx_parts.append(f"{m['name']} | {m['price']}\n{m['description']}")
+
+    for m in info_matches:
+        ctx_parts.append(f"{m['title']}\n{m['description']}")
+
+    context = "\n\n".join(ctx_parts[:6])  # limit size
+
+    convo = ""
+    if last_messages:
+        convo = "\n".join(
+            f"{m['role'].upper()}: {m['content']}"
+            for m in last_messages[-6:]
         )
-    for i, m in enumerate(info_matches, start=1):
-        ctx_parts.append(
-            f"[Info {i} | score={m['score']:.3f}] "
-            f"{m.get('title')}\n{m.get('description')}"
-        )
-    context = "\n\n".join(ctx_parts)
 
-    convo = _fmt_last_messages(last_messages or [], limit=10)
+    prompt = f"""
+    You are a store assistant. Tone: {tone}.
 
-    prompt = (
-        f"You are a  store assistant. Tone: {tone}.\n"
-        f"Do:\n{do_rules}\n\n"
-        f"Don't:\n{dont_rules}\n\n"
+    Use ONLY this context.
+    Be concise and helpful.
 
-        "Rules:\n"
-        "- Use ONLY the provided CONTEXT for factual claims about products.\n"
-        "- Always speak as the store using first-person plural (we/us/our). Never refer to the store as 'they'.\n\n"
-        "- Use CONVERSATION HISTORY to understand follow-up questions and user needs.\n"
-        "- Do NOT simply repeat the product description unless asked.\n"
-        "- If comparing products, explain differences clearly.\n"
-        "- If asked 'why not X', explain why.\n"
-        "- Prioritize reasoning over copying.\n"
-        "- Be concise but persuasive.\n"
-        "- If answer isn't in CONTEXT, say you don't know.\n\n"
-        "- Each product may have images available."
-        "- Do NOT include image URLs or markdown images."
+    CONVERSATION:
+    {convo}
 
-        f"CONVERSATION HISTORY (last 10):\n{convo}\n\n"
-        f"USER QUESTION:\n{question}\n\n"
-        f"CONTEXT:\n{context}"
-    )
+    QUESTION:
+    {question}
+
+    CONTEXT:
+    {context}
+    """
 
     llm = ChatOpenAI(model=model, temperature=0)
 
@@ -390,26 +224,3 @@ async def rag_message(
     )
 
     return {"message": resp.content}
-'''
-if __name__ == "__main__":
-    import asyncio
-    from db import connect_mongo, close_mongo
-
-    async def _main():
-        connect_mongo()
-        try:
-            business_id = "1c1d2f01-c889-4021-828e-688b482f1c2d"
-            question = "All Products"
-
-            out = await rag_search(
-                business_id=business_id,
-                question=question,
-                top_k=int(os.getenv("TOP_K", "6")),
-            )
-            print(out)
-        finally:
-            close_mongo()
-
-    asyncio.run(_main())
-'''
-
