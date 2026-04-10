@@ -176,6 +176,12 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
             if not assets:
                 continue
 
+            out.append({
+                "type": "photo",
+                "content": assets[0],
+                "meta": {"product_id": p.get("name")}
+            })
+            '''
             if i < 2:
                 out.append({
                     "type": "photo",
@@ -183,7 +189,6 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "meta": {"product_id": p.get("name")}
                 })
             else:
-                # Remaining products → apply confidence filter
                 confidence = float(p.get("confidence") or 0.0)
                 if confidence >= CONFIDENCE_THRESHOLD:
                     out.append({
@@ -191,6 +196,7 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
                         "content": assets[0],
                         "meta": {"product_id": p.get("name")}
                     })
+            '''
 
         # 2️⃣ Then message text
         out.append({

@@ -326,7 +326,7 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
     info_matches = search.get("info_matches", []) or []
 
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-
+    print("BEST:", best)
     # Ensure best product also has it
     if best:
         selected = await select_assets(best, question, llm)
