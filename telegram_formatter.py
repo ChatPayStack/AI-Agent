@@ -23,7 +23,6 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
       "inline_buttons": optional
     }
     """
-
     out: List[Dict[str, Any]] = []
     etype = envelope.get("type")
 
@@ -42,33 +41,37 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
     # -----------------
     if etype == "payments":
         data = envelope.get("data") or {}
+        message = envelope.get("message") or ""
 
-        if data.get("awaiting_payment") and envelope.get("message"):
-            # Extract solana link from message
-            solana_link = envelope["message"].split("\n")[1]
+        # ✅ Only do QR flow if message actually contains a link (crypto)
+        if data.get("awaiting_payment") and "\n" in message:
+            parts = message.split("\n")
 
-            qr_img = generate_solana_qr(solana_link)
+            # extra safety
+            if len(parts) > 1:
+                solana_link = parts[1]
 
-            # Convert to bytes for Telegram
-            buffer = io.BytesIO()
-            qr_img.save(buffer, format="PNG")
-            buffer.seek(0)
+                qr_img = generate_solana_qr(solana_link)
 
-            out.append({
-                "type": "qr",
-                "content": buffer,
-                "meta": {"payment_ui": True}
-            })
+                buffer = io.BytesIO()
+                qr_img.save(buffer, format="PNG")
+                buffer.seek(0)
 
-            out.append({
-                "type": "text",
-                "content": envelope.get("message"),
-                "meta": {"payment_ui": True}
-            })
+                out.append({
+                    "type": "qr",
+                    "content": buffer,
+                    "meta": {"payment_ui": True}
+                })
 
-            return out
-        
+                out.append({
+                    "type": "text",
+                    "content": message,
+                    "meta": {"payment_ui": True}
+                })
 
+                return out
+
+        # ✅ Otherwise → normal (Stripe / buttons flow)
         reply_markup = None
         if data.get("inline_buttons"):
             reply_markup = {
@@ -77,12 +80,11 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
 
         out.append({
             "type": "text",
-            "content": envelope.get("message", ""),
+            "content": message,
             "reply_markup": reply_markup
         })
 
         return out
-
     # -----------------
     # CART (NO IMAGES)
     # -----------------

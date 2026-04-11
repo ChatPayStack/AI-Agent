@@ -19,6 +19,8 @@ from orders_store import create_order
 
 from cart_store import load_cart, clear_cart, save_cart
 
+import traceback
+
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -391,6 +393,7 @@ async def main():
                         )
             except Exception as e:
                 print(f"[{WORKER_ID}] ERROR: {e}")
+                traceback.print_exc()
 
     finally:
         close_mongo()

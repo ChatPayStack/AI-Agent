@@ -205,7 +205,7 @@ async def select_assets(product: dict, question: str, llm) -> list[str]:
 # Enquiry agent
 # ----------------------------
 async def enquiry_agent_node(state: State) -> Dict[str, Any]:
-    business_id = state.get("business_id") or DEFAULT_BUSINESS_ID
+    business_id = state.get("business_id")
 
     question = ""
     for m in reversed(state["messages"]):
