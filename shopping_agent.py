@@ -281,7 +281,7 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
         # 5. Build response
         envelope = {
             "type": "enquiry",
-            "message": "Tap a product or ask me for details.",
+            "message": "Welcome! Here are some products you might like.",
             "data": {
                 "result_type": "products",
                 "products": formatted_products
