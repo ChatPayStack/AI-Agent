@@ -13,7 +13,7 @@ def create_stripe_checkout(amount: float, currency: str, metadata: dict):
                 "product_data": {
                     "name": "Order Payment",
                 },
-                "unit_amount": int(1 * 100),  # cents
+                "unit_amount": int(amount * 100),  # cents
             },
             "quantity": 1,
         }],
