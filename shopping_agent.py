@@ -930,7 +930,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
         delivery_cost = 0
 
         if country == "Ireland":
-            delivery_cost = 3
+            delivery_cost = 7
         elif country == "United Kingdom":
             delivery_cost = 7
 
