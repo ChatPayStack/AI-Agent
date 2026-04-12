@@ -136,7 +136,13 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
         if result_type == "product" and data.get("product"):
             p = data["product"]
 
-            # 1️⃣ Send main image
+            # 🔥 1️⃣ Show agent message FIRST
+            out.append({
+                "type": "text",
+                "content": envelope.get("message", "")
+            })
+
+            # 2️⃣ Send main image
             assets = p.get("suggested_asset_ids") or []
             if assets:
                 out.append({
@@ -145,7 +151,7 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
                     "meta": { "product_id": p.get("name") }
                 })
 
-            # 2️⃣ Build card text
+            # 3️⃣ Build card text
             clean_desc = strip_html(p.get("description", ""))[:400]
 
             card_text = (

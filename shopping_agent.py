@@ -335,10 +335,6 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
     collection_filter = search.get("collection_filter")
 
     if best and not collection_filter:
-        rewritten_desc = await generate_product_description(question, best, llm)
-        best["description"] = rewritten_desc
-        print("Rewritten Desc:",rewritten_desc)
-
         data = {
             "result_type": "product",
             "product": _to_product_obj(best)
