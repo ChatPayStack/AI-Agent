@@ -318,6 +318,7 @@ async def rag_message(
         "- If comparing products, explain differences clearly.\n"
         "- If asked 'why not X', explain why.\n"
         "- Prioritize reasoning over copying.\n"
+        "All prices are in euros (€). Do not use any other currency."
         "- Be concise but persuasive.\n"
         "- If answer isn't in CONTEXT, say you don't know.\n\n"
 
