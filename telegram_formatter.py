@@ -5,7 +5,7 @@ import re
 from generatePayQR import generate_solana_qr
 import io
 
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.8
 
 
 def strip_html(text: str) -> str:
@@ -173,7 +173,12 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
         products = data.get("products") or []
 
         # 1️⃣ Images first
-        for i, p in enumerate(products):
+        for p in products:
+            confidence = float(p.get("confidence") or 0.0)
+
+            if confidence < CONFIDENCE_THRESHOLD:
+                continue
+
             assets = p.get("suggested_asset_ids") or []
             if not assets:
                 continue
@@ -183,23 +188,6 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "content": assets[0],
                 "meta": {"product_id": p.get("name")}
             })
-            '''
-            if i < 2:
-                out.append({
-                    "type": "photo",
-                    "content": assets[0],
-                    "meta": {"product_id": p.get("name")}
-                })
-            else:
-                confidence = float(p.get("confidence") or 0.0)
-                if confidence >= CONFIDENCE_THRESHOLD:
-                    out.append({
-                        "type": "photo",
-                        "content": assets[0],
-                        "meta": {"product_id": p.get("name")}
-                    })
-            '''
-
         # 2️⃣ Then message text
         out.append({
             "type": "text",

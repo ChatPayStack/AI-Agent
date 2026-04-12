@@ -292,6 +292,32 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
             "page_or_slide": page_or_slide,
             "suggested_asset_ids": suggested_asset_ids,
         }
+    async def generate_product_description(question: str, product: dict, llm):
+        prompt = f"""
+        Rewrite a short product description tailored to the user's query.
+
+        User query: {question}
+
+        Product:
+        Name: {product.get("name")}
+        Original description (ground truth):
+        {product.get("description")}
+
+        Rules:
+        - Max 2 sentences
+        - Focus on why it's relevant to the query
+        - Keep it natural and persuasive
+        - No emojis
+        - DO NOT add, assume, or invent any features not present in the original description
+        - DO NOT change product facts (e.g. variants, ingredients, features)
+        - If the query asks for something the product does NOT have, do NOT pretend it exists
+        - Stay strictly grounded in the original description
+
+        Output only the description text.
+        """
+
+        resp = await llm.ainvoke(prompt)
+        return (resp.content or "").strip()
 
     def _to_product_obj(p: Dict[str, Any]) -> Dict[str, Any]:
         prov = _pick_provenance(p, info_matches)
@@ -309,7 +335,14 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
     collection_filter = search.get("collection_filter")
 
     if best and not collection_filter:
-        data = {"result_type": "product", "product": _to_product_obj(best)}
+        rewritten_desc = await generate_product_description(question, best, llm)
+        best["description"] = rewritten_desc
+        print("Rewritten Desc:",rewritten_desc)
+
+        data = {
+            "result_type": "product",
+            "product": _to_product_obj(best)
+        }
     else:
         data = {
             "result_type": "products",
