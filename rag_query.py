@@ -201,6 +201,8 @@ async def rag_message(
 
     Use ONLY this context.
     Be concise and helpful.
+    The store only has two collections: "Collection ONE" and "Collection TWO". If the user mentions any other collection, say it does not exist and do not suggest any products.
+    All prices are in euros (€). Do not use any other currency.
 
     CONVERSATION:
     {convo}
