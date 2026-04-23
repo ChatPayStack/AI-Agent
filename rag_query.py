@@ -307,7 +307,7 @@ async def rag_message(
     convo = _fmt_last_messages(last_messages or [], limit=10)
 
     prompt = (
-        f"You are a skincare store assistant. Tone: {tone}.\n"
+        f"You are a store assistant. Tone: {tone}.\n"
         f"Do:\n{do_rules}\n\n"
         f"Don't:\n{dont_rules}\n\n"
 

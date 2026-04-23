@@ -76,7 +76,7 @@ def format_for_whatsapp(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
         data = envelope.get("data") or {}
         result_type = data.get("result_type")
 
-        # SINGLE PRODUCT
+        # ✅ SINGLE PRODUCT → IMAGE + TEXT
         if result_type == "product" and data.get("product"):
             p = data["product"]
 
@@ -102,17 +102,7 @@ def format_for_whatsapp(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
 
             return out
 
-        # MULTIPLE PRODUCTS
-        products = data.get("products") or []
-
-        for p in products:
-            assets = p.get("suggested_asset_ids") or []
-            if assets:
-                out.append({
-                    "type": "photo",
-                    "content": assets[0]
-                })
-
+        # ✅ MULTIPLE PRODUCTS → TEXT ONLY (NO IMAGES)
         out.append({
             "type": "text",
             "content": envelope.get("message", "")
