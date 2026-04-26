@@ -93,6 +93,15 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
         items = cart.get("items") or []
         summary = cart.get("summary") or {}
 
+        # 👉 send agent message FIRST (if exists)
+        message = envelope.get("message")
+        if message:
+            out.append({
+                "type": "text",
+                "content": message
+            })
+
+        # 👉 empty cart case
         if not items:
             out.append({
                 "type": "text",
@@ -100,6 +109,7 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
             })
             return out
 
+        # 👉 build cart UI
         lines = ["🛒 *Your cart*\n"]
         for it in items:
             name = it.get("name")
@@ -121,6 +131,7 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
                 ]
             }
         })
+
         return out
 
     # -----------------

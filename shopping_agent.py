@@ -715,9 +715,8 @@ async def cart_add_node(state: State) -> Dict[str, Any]:
     # ---- fallback ----
     if not query:
         entities = RECENT_ENTITIES.get(thread_id, [])
-        if entities:
-            query = entities[0]["name"]
-        else:
+
+        if not entities:
             safe_cart = serialize_cart(cart)
             return {
                 "messages": [AIMessage(content=json.dumps({
@@ -726,6 +725,69 @@ async def cart_add_node(state: State) -> Dict[str, Any]:
                     "data": {"cart": safe_cart},
                 }, ensure_ascii=False))]
             }
+
+        # 👉 LLM decides which products to add
+        options = [e["name"] for e in entities[:5]]
+
+        prompt = f"""
+        User said: "{user_text}"
+
+        Available products:
+        {options}
+
+        Task:
+        - Decide which products the user wants to add
+        - If plural (e.g. "those", "them", "both") → return multiple
+        - If singular → return one
+        - If unclear → return empty list
+
+        Return ONLY JSON list of product names.
+
+        Example:
+        ["Moisturising Body Oil"]
+        """
+
+        resp = await cart_llm.ainvoke(prompt)
+
+        try:
+            selected = json.loads(resp.content)
+        except:
+            selected = []
+
+        if not selected:
+            safe_cart = serialize_cart(cart)
+            return {
+                "messages": [AIMessage(content=json.dumps({
+                    "type": "cart",
+                    "message": f"Which one do you want to add? {', '.join(options)}",
+                    "data": {"cart": safe_cart},
+                }, ensure_ascii=False))]
+            }
+
+        # 👉 add selected products
+        for name in selected:
+            search = await rag_search(
+                business_id=business_id,
+                question=name,
+                top_k=1,
+            )
+            best = search.get("best_product")
+            if best:
+                product = _product_from_search(best, search.get("info_matches", []))
+                if product:
+                    add_item(cart, product, qty=1)
+
+        await save_cart(cart)
+
+        safe_cart = serialize_cart(cart)
+
+        return {
+            "messages": [AIMessage(content=json.dumps({
+                "type": "cart",
+                "message": "Added selected items to your cart.",
+                "data": {"cart": safe_cart},
+            }, ensure_ascii=False))]
+        }
 
     # ---- search ----
     search = await rag_search(
