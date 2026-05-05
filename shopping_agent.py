@@ -98,6 +98,7 @@ class State(TypedDict, total=False):
     business_id: str
     turn_id: str
     is_first_message: bool 
+    last_products: List[str]
 
 
 # ----------------------------
@@ -381,9 +382,21 @@ async def enquiry_agent_node(state: State) -> Dict[str, Any]:
                 "ts": _now().isoformat(),
             })
 
-    RECENT_ENTITIES[state["thread_id"]] = entities
+    RECENT_ENTITIES[state["thread_id"]] = [
+        {
+            "name": p["name"],
+            "confidence": p["confidence"]
+        }
+        for p in data.get("products", [])[:3]
+    ]
+    last_products = []
 
-    return {"messages": [AIMessage(content=json.dumps(envelope, ensure_ascii=False))]}
+    if best:
+        last_products = [data["product"]["name"]]
+    else:
+        last_products = [p["name"] for p in data.get("products", [])[:3]]
+
+    return {"messages": [AIMessage(content=json.dumps(envelope, ensure_ascii=False))], "last_products": last_products}
 
 
 # ----------------------------
@@ -677,6 +690,35 @@ async def cart_remove_node(state: State) -> Dict[str, Any]:
         }, ensure_ascii=False))]
     }
 
+async def extract_product_list(user_text: str) -> list[str]:
+    prompt = f"""
+Extract product names from the user message.
+
+USER:
+"{user_text}"
+
+Rules:
+- Return ALL products mentioned
+- Split multiple products (even if joined with 'and', commas, etc.)
+- Keep names short and natural (e.g. "foam", "body oil")
+- If none found → return empty list
+
+Return ONLY JSON list.
+
+Example:
+["foam", "body oil"]
+"""
+    resp = await cart_llm.ainvoke(prompt)
+
+    try:
+        items = json.loads(resp.content)
+        if isinstance(items, list):
+            return [str(x).strip() for x in items if str(x).strip()]
+    except:
+        pass
+
+    return []
+
 async def cart_add_node(state: State) -> Dict[str, Any]:
     thread_id = state["thread_id"]
     business_id = state.get("business_id") or DEFAULT_BUSINESS_ID
@@ -690,12 +732,12 @@ async def cart_add_node(state: State) -> Dict[str, Any]:
             user_text = (m.content or "").strip()
             break
 
-    # ---- extract reply_to_product ----
-    reply_product = None
-    for m in state["messages"]:
-        if isinstance(m, SystemMessage) and "exact product by image" in m.content:
-            reply_product = m.content.split("exact product by image:")[-1].strip()
-            break
+    # ---- get last products (STATE + MEMORY fallback) ----
+    last_products = (
+        state.get("last_products")
+        or [e["name"] for e in RECENT_ENTITIES.get(thread_id, [])]
+        or []
+    )
 
     # ---- extract intent ----
     act = await extract_cart_action(
@@ -708,123 +750,83 @@ async def cart_add_node(state: State) -> Dict[str, Any]:
     query = act.get("query")
     qty = act.get("qty") or 1
 
-    # ---- PRIORITY 1: reply product (STRICT) ----
-    if reply_product:
-        query = reply_product
+    # ---- extract product names properly ----
+    names = await extract_product_list(user_text)
+
+    # =========================================================
+    # 🔥 HANDLE "YES" / CONFIRMATION
+    # =========================================================
+    if user_text.lower() in ["yes", "yeah", "yep", "sure", "ok", "okay"]:
+        names = last_products
 
     # ---- fallback ----
-    if not query:
-        entities = RECENT_ENTITIES.get(thread_id, [])
+    if not names and query:
+        names = [query]
 
-        if not entities:
-            safe_cart = serialize_cart(cart)
-            return {
-                "messages": [AIMessage(content=json.dumps({
-                    "type": "cart",
-                    "message": "What do you want to add?",
-                    "data": {"cart": safe_cart},
-                }, ensure_ascii=False))]
-            }
-
-        # 👉 LLM decides which products to add
-        options = [e["name"] for e in entities[:5]]
-
-        prompt = f"""
-        User said: "{user_text}"
-
-        Available products:
-        {options}
-
-        Task:
-        - Decide which products the user wants to add
-        - If plural (e.g. "those", "them", "both") → return multiple
-        - If singular → return one
-        - If unclear → return empty list
-
-        Return ONLY JSON list of product names.
-
-        Example:
-        ["Moisturising Body Oil"]
-        """
-
-        resp = await cart_llm.ainvoke(prompt)
-
-        try:
-            selected = json.loads(resp.content)
-        except:
-            selected = []
-
-        if not selected:
-            safe_cart = serialize_cart(cart)
-            return {
-                "messages": [AIMessage(content=json.dumps({
-                    "type": "cart",
-                    "message": f"Which one do you want to add? {', '.join(options)}",
-                    "data": {"cart": safe_cart},
-                }, ensure_ascii=False))]
-            }
-
-        # 👉 add selected products
-        for name in selected:
-            search = await rag_search(
-                business_id=business_id,
-                question=name,
-                top_k=1,
-            )
-            best = search.get("best_product")
-            if best:
-                product = _product_from_search(best, search.get("info_matches", []))
-                if product:
-                    add_item(cart, product, qty=1)
-
-        await save_cart(cart)
+    # =========================================================
+    # 🔥 AMBIGUOUS → ASK USER
+    # =========================================================
+    if not names:
+        if last_products:
+            if len(last_products) == 1:
+                question = f"Do you want me to add {last_products[0]} to your cart?"
+            else:
+                question = f"Do you want me to add {', '.join(last_products)} to your cart?"
+        else:
+            question = "What do you want to add?"
 
         safe_cart = serialize_cart(cart)
 
         return {
             "messages": [AIMessage(content=json.dumps({
                 "type": "cart",
-                "message": "Added selected items to your cart.",
+                "message": question,
                 "data": {"cart": safe_cart},
             }, ensure_ascii=False))]
         }
 
-    # ---- search ----
-    search = await rag_search(
-        business_id=business_id,
-        question=query,
-        top_k=1 if reply_product else int(os.getenv("TOP_K", "6")),
-    )
+    # =========================================================
+    # 🔥 ADD PRODUCTS
+    # =========================================================
+    added = []
 
-    best = search.get("best_product")
-    product_matches = search.get("product_matches", []) or []
-    info_matches = search.get("info_matches", []) or []
+    for name in names:
+        search = await rag_search(
+            business_id=business_id,
+            question=name,
+            top_k=3,
+        )
 
-    if not best and product_matches:
-        best = product_matches[0]
+        best = search.get("best_product")
+        product_matches = search.get("product_matches", []) or []
+        info_matches = search.get("info_matches", []) or []
 
-    # ---- SAFETY: prevent wrong variant ----
-    if reply_product and best:
-        if reply_product.lower() not in (best.get("name") or "").lower():
-            best = None
+        if not best and product_matches:
+            best = product_matches[0]
 
-    product = _product_from_search(best, info_matches)
+        product = _product_from_search(best, info_matches)
 
-    if not product or not product.get("name"):
+        if not product or not product.get("name"):
+            continue
+
+        # ---- FIX price bug ----
+        if isinstance(product.get("price"), (int, float)):
+            product["price"] = str(product["price"])
+
+        add_item(cart, product, qty=int(qty))
+        added.append(product.get("name"))
+
+    # ---- NOTHING FOUND ----
+    if not added:
         safe_cart = serialize_cart(cart)
         return {
             "messages": [AIMessage(content=json.dumps({
                 "type": "cart",
-                "message": "I couldn’t find that product.",
+                "message": "I couldn’t find those products.",
                 "data": {"cart": safe_cart},
             }, ensure_ascii=False))]
         }
 
-    # ---- add to cart ----
-    if isinstance(product.get("price"), (int, float)):
-        product["price"] = str(product["price"])
-
-    add_item(cart, product, qty=int(qty))
     await save_cart(cart)
 
     safe_cart = serialize_cart(cart)
@@ -832,11 +834,10 @@ async def cart_add_node(state: State) -> Dict[str, Any]:
     return {
         "messages": [AIMessage(content=json.dumps({
             "type": "cart",
-            "message": f"Added {int(qty)} × {product.get('name')} to your cart.",
+            "message": f"Added: {', '.join(added)}",
             "data": {"cart": safe_cart},
         }, ensure_ascii=False))]
     }
-
 # ----------------------------
 # Payments node (kept as-is from your working version)
 # ----------------------------
