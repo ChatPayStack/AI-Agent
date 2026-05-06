@@ -190,6 +190,7 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
         products = data.get("products") or []
 
         # 1️⃣ Images first
+        '''
         for p in products:
             confidence = float(p.get("confidence") or 0.0)
 
@@ -205,6 +206,7 @@ def format_for_telegram(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
                 "content": assets[0],
                 "meta": {"product_id": p.get("name")}
             })
+        '''
         # 2️⃣ Then message text
         out.append({
             "type": "text",
