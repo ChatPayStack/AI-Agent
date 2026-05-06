@@ -64,7 +64,7 @@ async def send_telegram_message(chat_id: int, msg: dict, worker_id: str, trace_i
                 payload = {
                     "chat_id": chat_id,
                     "text": msg["content"],
-                    "parse_mode": "Markdown",
+                    "parse_mode": "None",
                     "reply_markup": msg.get("reply_markup") or REPLY_KEYBOARD,
                     "disable_web_page_preview": True
                 }
