@@ -39,26 +39,26 @@ def _fmt_last_messages(last_messages: List[Dict[str, str]], limit: int = 10) -> 
     return "\n".join(lines)
 
 
-# 🔥 NEW — multilingual intent classifier
-async def classify_intent(question: str) -> str:
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+def classify_intent(question: str) -> str:
+    q = question.lower()
 
-    prompt = f"""
-Classify the user query into ONE of:
+    discovery_keywords = [
+        "show me",
+        "products",
+        "catalog",
+        "collection",
+        "pictures",
+        "photos",
+        "what do you sell",
+        "browse",
+        "all products",
+    ]
 
-- discovery → browsing, general, show products, catalog
-- specific → looking for a specific product or need
+    for kw in discovery_keywords:
+        if kw in q:
+            return "discovery"
 
-Query: {question}
-
-Return ONLY one word: discovery or specific
-"""
-
-    resp = await llm.ainvoke(prompt)
-    label = (resp.content or "").strip().lower()
-
-    return "discovery" if "discovery" in label else "specific"
-
+    return "specific"
 
 async def rag_search(
     *,
@@ -69,7 +69,7 @@ async def rag_search(
     db = get_db()
 
     # 🔥 STEP 1 — intent classification (multilingual)
-    intent = await classify_intent(question)
+    intent =  classify_intent(question)
 
     # =====================================================
     # 🔥 DISCOVERY MODE → bypass embeddings
