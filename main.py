@@ -152,58 +152,7 @@ async def main():
             try:
                 data = json.loads(raw)
                 if data.get("type") == "stripe_webhook":
-                    metadata = data.get("metadata", {})
-                    thread_id = metadata.get("thread_id")
-                    payment_id = ObjectId(metadata.get("payment_id"))
-                    stripe_session_id = data.get("stripe_session_id")
-
-                    # 1️⃣ Mark payment paid
-                    await update_payment_attempt(
-                        payment_id,
-                        business_id,
-                        {
-                            "stage": "paid",
-                            "status": "success",
-                            "stripe_session_id": stripe_session_id,
-                            "paid_at": datetime.now(timezone.utc).isoformat(),
-                        },
-                    )
-
-                    payment_doc = await payments(business_id).find_one({"_id": payment_id})
-
-                    # 2️⃣ Create order (idempotent — safe on Stripe retries)
-                    order = await create_order({
-                        "business_id": business_id,
-                        "thread_id": thread_id,
-                        "payment_id": payment_id,
-                        "stripe_session_id": stripe_session_id,
-                        "cart_snapshot": payment_doc.get("cart_snapshot"),
-                        "email": payment_doc.get("email"),
-                        "address": payment_doc.get("address"),
-                        "country": payment_doc.get("country"),
-                        "total_amount": payment_doc.get("total_amount"),
-                        "currency": "eur",
-                        "payment_method": "stripe",
-                        "status": "paid",
-                    })
-
-                    # 3️⃣ Clear cart
-                    cart = await load_cart(thread_id, business_id)
-                    clear_cart(cart)
-                    await save_cart(cart)
-
-                    # 4️⃣ Send confirmation (Telegram only — thread_id must be numeric)
-                    total = payment_doc.get("total_amount", "")
-                    total_str = f"€{total}" if total else ""
-                    confirm_text = (
-                        f"✅ Payment successful!\n\n"
-                        f"Your order has been confirmed and is now being processed."
-                        + (f"\n\nOrder total: {total_str}" if total_str else "")
-                        + f"\n\nThanks for shopping with us. 🛍️"
-                    )
-
-                    await send_whatsapp_text(thread_id, confirm_text)
-
+                    # Handled by whatsapp_worker
                     continue
 
                 if data.get("type") == "coinbase_webhook":

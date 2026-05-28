@@ -5,7 +5,12 @@ import asyncio
 import uuid
 
 from shopping_agent import chat_turn
-from db import connect_mongo, close_mongo
+from db import connect_mongo, close_mongo, payments
+from payments_store import update_payment_attempt
+from orders_store import create_order
+from cart_store import load_cart, clear_cart, save_cart
+from bson import ObjectId
+from datetime import datetime, timezone
 
 import httpx
 
@@ -69,6 +74,57 @@ async def main():
 
             try:
                 data = json.loads(raw)
+
+                # ✅ Stripe payment success
+                if data.get("type") == "stripe_webhook":
+                    metadata = data.get("metadata", {})
+                    thread_id = metadata.get("thread_id")
+                    payment_id = ObjectId(metadata.get("payment_id"))
+                    stripe_session_id = data.get("stripe_session_id")
+
+                    await update_payment_attempt(
+                        payment_id, business_id,
+                        {
+                            "stage": "paid",
+                            "status": "success",
+                            "stripe_session_id": stripe_session_id,
+                            "paid_at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+
+                    payment_doc = await payments(business_id).find_one({"_id": payment_id})
+
+                    await create_order({
+                        "business_id": business_id,
+                        "thread_id": thread_id,
+                        "payment_id": payment_id,
+                        "stripe_session_id": stripe_session_id,
+                        "cart_snapshot": payment_doc.get("cart_snapshot"),
+                        "email": payment_doc.get("email"),
+                        "address": payment_doc.get("address"),
+                        "country": payment_doc.get("country"),
+                        "total_amount": payment_doc.get("total_amount"),
+                        "currency": "eur",
+                        "payment_method": "stripe",
+                        "status": "paid",
+                    })
+
+                    cart = await load_cart(thread_id, business_id)
+                    clear_cart(cart)
+                    await save_cart(cart)
+
+                    total = payment_doc.get("total_amount", "")
+                    total_str = f"€{total}" if total else ""
+                    confirm_text = (
+                        f"✅ Payment successful!\n\n"
+                        f"Your order has been confirmed and is now being processed."
+                        + (f"\n\nOrder total: {total_str}" if total_str else "")
+                        + f"\n\nThanks for shopping with us. 🛍️"
+                    )
+
+                    to_wa = thread_id if thread_id.startswith("whatsapp:") else f"whatsapp:{thread_id}"
+                    await send_whatsapp_message(to_wa, {"type": "text", "content": confirm_text})
+                    continue
 
                 # ✅ Only WhatsApp
                 if data.get("channel") != "whatsapp":
