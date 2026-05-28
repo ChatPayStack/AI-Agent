@@ -12,3 +12,4 @@ uvicorn
 fastapi
 redis
 stripe
+openpyxl
