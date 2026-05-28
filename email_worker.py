@@ -45,7 +45,7 @@ async def send_email_reply(to: str, subject: str, body: str, thread_id: str):
         "saveToSentItems": True,
     }
 
-    url = f"{GRAPH_API_ENDPOINT}/me/messages/{thread_id}/reply"
+    url = f"{GRAPH_API_ENDPOINT}/users/imaad.thouheed@chatpay.ie/sendMail"
 
     headers = {
         "Authorization": f"Bearer {token}",
