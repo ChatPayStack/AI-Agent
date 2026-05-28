@@ -28,10 +28,16 @@ def format_for_whatsapp(envelope: Dict[str, Any]) -> List[Dict[str, Any]]:
     # PAYMENTS (simplified)
     # -----------------
     if etype == "payments":
-        out.append({
-            "type": "text",
-            "content": envelope.get("message", "")
-        })
+        data = envelope.get("data") or {}
+        checkout_url = data.get("stripe_checkout_url", "")
+        base_message = envelope.get("message", "")
+
+        if checkout_url:
+            content = f"Tap below to pay securely with your card:\n\n{checkout_url}"
+        else:
+            content = base_message
+
+        out.append({"type": "text", "content": content})
         return out
 
     # -----------------
