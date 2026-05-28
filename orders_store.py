@@ -46,7 +46,7 @@ def append_order_to_excel(order_data: Dict[str, Any]):
         ws = wb.active
 
         cart_snapshot = order_data.get("cart_snapshot") or {}
-        amount = order_data.get("amount", "")
+        amount = order_data.get("total_amount") or order_data.get("amount", "")
         currency = order_data.get("currency", "")
         total = f"{amount} {currency}".strip() if amount else ""
 
@@ -73,9 +73,18 @@ def append_order_to_excel(order_data: Dict[str, Any]):
         print(f"❌ Failed to write order to Excel: {e}")
 
 
-# CREATE order
+# CREATE order — idempotent on payment_id
 async def create_order(state: Dict[str, Any]) -> Dict[str, Any]:
-    state["status"] = "pending"
+    payment_id = state.get("payment_id")
+
+    # Idempotency: skip insert if order already exists for this payment_id
+    if payment_id:
+        existing = await orders(state["business_id"]).find_one({"payment_id": payment_id})
+        if existing:
+            print(f"⚠️  Duplicate order skipped for payment_id={payment_id}")
+            return existing
+
+    state.setdefault("status", "pending")
     state["created_at"] = _now()
     state["updated_at"] = _now()
 
