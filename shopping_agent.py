@@ -897,15 +897,37 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
             },
         )
 
+        stripe_data = create_stripe_checkout(
+            amount=float(total),
+            currency="eur",
+            metadata={
+                "business_id": business_id,
+                "thread_id": thread_id,
+                "payment_id": str(latest["_id"]),
+            }
+        )
+
+        await update_payment_attempt(
+            latest["_id"],
+            business_id,
+            {
+                "stage": "awaiting_stripe_payment",
+                "payment_method": "stripe",
+                "stripe_session_id": stripe_data["session_id"],
+                "stripe_checkout_url": stripe_data["checkout_url"],
+            },
+        )
+
         envelope = {
             "type": "payments",
-            "message": "Tap below to pay securely with your card.",
+            "message": f"Tap below to pay securely with your card:\n\n{stripe_data['checkout_url']}",
             "data": {
+                "awaiting_payment": False,
+                "stripe": True,
+                "stripe_checkout_url": stripe_data["checkout_url"],
                 "inline_buttons": [
-                    [{"text": "💳 Pay with Card (Stripe)", "callback_data": "stripe"}],
-                  #  [{"text": "💶 Pay with EURC", "callback_data": "eurc"}]
+                    [{"text": "💳 Pay with Card (Stripe)", "url": stripe_data["checkout_url"]}],
                 ],
-                "awaiting_payment": True
             },
         }
 
