@@ -60,7 +60,7 @@ async def send_email_reply(to: str, subject: str, body: str, message_id: str):
 
 
 async def main():
-    queue_name = "email_queue"
+    queue_name = f"chatpay_queue_{business_id}"
 
     print(f"[{WORKER_ID}] started")
     print(f"[{WORKER_ID}] listening on {queue_name}")
