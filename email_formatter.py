@@ -40,20 +40,6 @@ def format_for_email(envelope: Dict[str, Any]) -> str:
         return "\n".join(lines)
 
     if etype == "enquiry":
-        data = envelope.get("data") or {}
-        result_type = data.get("result_type")
-
-        if result_type == "product" and data.get("product"):
-            p = data["product"]
-            clean_desc = strip_html(p.get("description", ""))[:600]
-            lines = [
-                p.get("name", ""),
-                f"Price: €{p.get('price')}",
-                "",
-                clean_desc,
-            ]
-            return "\n".join(lines)
-
-        return envelope.get("message", "")
+        return envelope.get("message", "").strip()
 
     return envelope.get("message", "")
