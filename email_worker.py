@@ -60,14 +60,16 @@ async def send_email_reply(to: str, subject: str, body: str, message_id: str):
 
 
 async def main():
+    queue_name = "email_queue"
+
     print(f"[{WORKER_ID}] started")
-    print(f"[{WORKER_ID}] listening on chatpay_queue_{business_id}")
+    print(f"[{WORKER_ID}] listening on {queue_name}")
 
     connect_mongo()
 
     try:
         while True:
-            task = r.blpop(f"chatpay_queue_{business_id}", timeout=1)
+            task = r.blpop(queue_name, timeout=1)
             if not task:
                 continue
 
