@@ -1009,6 +1009,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
                 "data": {
                     "awaiting_payment": False,
                     "stripe": True,
+                    "stripe_checkout_url": stripe_data["checkout_url"],
                 },
             }
 
