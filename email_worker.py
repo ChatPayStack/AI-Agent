@@ -120,6 +120,7 @@ async def main():
                 print(json.dumps(envelope, indent=2))
 
                 reply_body = format_for_email(envelope)
+                print(f"[{WORKER_ID}] 📧 Reply body to send: {repr(reply_body[:200])}")
 
                 await send_email_reply(
                     to=sender_email,
