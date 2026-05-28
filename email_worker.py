@@ -93,9 +93,13 @@ async def main():
                 thread_id = message.get("thread_id", "").strip()
                 message_id = message.get("message_id", "").strip()
 
-                if not sender_email or not body or not thread_id or not message_id:
+                if not sender_email or not body or not thread_id:
                     print(f"[{WORKER_ID}] ⚠️  Missing required fields — skipping")
-                    print(f"[{WORKER_ID}]   from={repr(sender_email)} body={repr(body[:40])} thread_id={repr(thread_id)} message_id={repr(message_id)}")
+                    print(f"[{WORKER_ID}]   from={repr(sender_email)} body={repr(body[:40])} thread_id={repr(thread_id)}")
+                    continue
+
+                if not message_id:
+                    print(f"[{WORKER_ID}] ⚠️  message_id missing — cannot send threaded reply (update main.py)")
                     continue
 
                 user_text = body
