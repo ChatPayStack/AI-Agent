@@ -21,19 +21,15 @@ GRAPH_API_ACCESS_TOKEN = os.getenv("GRAPH_API_ACCESS_TOKEN")
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 
 
-async def send_email_reply(to: str, subject: str, body: str, thread_id: str):
-    """Send a reply email via Microsoft Graph API."""
+async def send_email_reply(to: str, subject: str, body: str, message_id: str):
+    """Send a threaded reply via Microsoft Graph API /users/.../messages/{message_id}/reply."""
     token = GRAPH_API_ACCESS_TOKEN
     if not token:
         print(f"[{WORKER_ID}] ❌ GRAPH_API_ACCESS_TOKEN not set — cannot send email")
         return
 
-    # Re-use subject prefix if not already present
-    reply_subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
-
     payload = {
         "message": {
-            "subject": reply_subject,
             "body": {
                 "contentType": "Text",
                 "content": body,
@@ -45,7 +41,7 @@ async def send_email_reply(to: str, subject: str, body: str, thread_id: str):
         "saveToSentItems": True,
     }
 
-    url = f"{GRAPH_API_ENDPOINT}/users/imaad.thouheed@chatpay.ie/sendMail"
+    url = f"{GRAPH_API_ENDPOINT}/users/imaad.thouheed@chatpay.ie/messages/{message_id}/reply"
 
     headers = {
         "Authorization": f"Bearer {token}",
@@ -93,15 +89,16 @@ async def main():
                 subject = message.get("subject", "").strip()
                 body = message.get("body", "").strip()
                 thread_id = message.get("thread_id", "").strip()
+                message_id = message.get("message_id", "").strip()
 
-                if not sender_email or not body or not thread_id:
-                    print(f"[{WORKER_ID}] ⚠️  Missing required fields (from/body/thread_id) — skipping")
+                if not sender_email or not body or not thread_id or not message_id:
+                    print(f"[{WORKER_ID}] ⚠️  Missing required fields (from/body/thread_id/message_id) — skipping")
                     continue
 
                 user_text = body
                 turn_id = str(uuid.uuid4())
 
-                print(f"[{WORKER_ID}] 🔄 Calling chat_turn | thread={thread_id} | from={sender_email}")
+                print(f"[{WORKER_ID}] 🔄 Calling chat_turn | thread={thread_id} | message={message_id} | from={sender_email}")
 
                 response = await chat_turn(
                     thread_id=thread_id,
@@ -121,7 +118,7 @@ async def main():
                     to=sender_email,
                     subject=subject,
                     body=reply_body,
-                    thread_id=thread_id,
+                    message_id=message_id,
                 )
 
             except Exception as e:
