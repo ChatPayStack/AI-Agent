@@ -94,7 +94,8 @@ async def main():
                 message_id = message.get("message_id", "").strip()
 
                 if not sender_email or not body or not thread_id or not message_id:
-                    print(f"[{WORKER_ID}] ⚠️  Missing required fields (from/body/thread_id/message_id) — skipping")
+                    print(f"[{WORKER_ID}] ⚠️  Missing required fields — skipping")
+                    print(f"[{WORKER_ID}]   from={repr(sender_email)} body={repr(body[:40])} thread_id={repr(thread_id)} message_id={repr(message_id)}")
                     continue
 
                 user_text = body
