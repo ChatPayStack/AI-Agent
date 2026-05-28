@@ -202,16 +202,7 @@ async def main():
                         + f"\n\nThanks for shopping with us. 🛍️"
                     )
 
-                    if str(thread_id).lstrip("+-").isdigit():
-                        await send_telegram_message(
-                            int(thread_id),
-                            {"type": "text", "content": confirm_text},
-                            WORKER_ID,
-                            "stripe_webhook"
-                        )
-                    else:
-                        # WhatsApp thread_id is a phone number
-                        await send_whatsapp_text(thread_id, confirm_text)
+                    await send_whatsapp_text(thread_id, confirm_text)
 
                     continue
 
