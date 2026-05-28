@@ -29,6 +29,26 @@ business_id = os.getenv("BUSINESS_ID")
 
 TELEGRAM_SEND_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
+
+
+async def send_whatsapp_text(to: str, text: str):
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
+    # Ensure 'to' has whatsapp: prefix
+    to_wa = to if to.startswith("whatsapp:") else f"whatsapp:{to}"
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            url,
+            data={"From": TWILIO_WHATSAPP_NUMBER, "To": to_wa, "Body": text},
+            auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
+        )
+        if resp.status_code >= 400:
+            print(f"[{WORKER_ID}] ❌ WhatsApp send error: {resp.status_code} {resp.text}")
+        else:
+            print(f"[{WORKER_ID}] ✅ WhatsApp confirmation sent to {to}")
+
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 
 REPLY_KEYBOARD = None
@@ -190,7 +210,8 @@ async def main():
                             "stripe_webhook"
                         )
                     else:
-                        print(f"[{WORKER_ID}] ℹ️  Non-Telegram thread_id={thread_id} — skipping Telegram confirmation")
+                        # WhatsApp thread_id is a phone number
+                        await send_whatsapp_text(thread_id, confirm_text)
 
                     continue
 
