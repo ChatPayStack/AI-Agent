@@ -12,3 +12,7 @@ uvicorn
 fastapi
 redis
 stripe
+langchain-core==1.2.7
+langchain-openai==1.1.7
+langgraph==1.0.5
+langsmith==0.6.2

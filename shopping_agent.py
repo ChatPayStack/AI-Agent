@@ -846,34 +846,14 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
     latest = await load_latest_payment(thread_id, business_id)
 
     # =====================================================
-    # STEP 1 — User triggers checkout
-    # =====================================================
-    if "checkout" in user_text.lower() or "pay" in user_text.lower():
-
-        payment = await create_payment_attempt({
-            "business_id": business_id,
-            "thread_id": thread_id,
-            "stage": "awaiting_email",
-            "cart_snapshot": serialize_cart(cart),
-        })
-
-        envelope = {
-            "type": "payments",
-            "message": "What’s your email?",
-            "data": {"payment_id": str(payment["_id"])},
-        }
-
-        return {"messages": [AIMessage(content=json.dumps(envelope))]}
-
-    # =====================================================
-    # STEP 2 — Email entered
+    # STEP 1 — Email entered (mid-checkout takes priority)
     # =====================================================
     if latest and latest.get("stage") == "awaiting_email":
 
         if not _EMAIL_RE.match(user_text):
             envelope = {
                 "type": "payments",
-                "message": "Please enter a valid email address.",
+                "message": "I’m still waiting on your email — please send it.",
                 "data": None,
             }
             return {"messages": [AIMessage(content=json.dumps(envelope))]}
@@ -896,7 +876,7 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
         return {"messages": [AIMessage(content=json.dumps(envelope))]}
 
     # =====================================================
-    # STEP 3 — Address entered → validate country
+    # STEP 2 — Address entered → validate country
     # =====================================================
     if latest and latest.get("stage") == "awaiting_address":
 
@@ -1108,12 +1088,20 @@ async def payments_agent_node(state: State) -> Dict[str, Any]:
         '''
         
     # =====================================================
-    # Fallback
+    # Start new checkout — router classified intent as "payments",
+    # no in-progress checkout found above.
     # =====================================================
+    payment = await create_payment_attempt({
+        "business_id": business_id,
+        "thread_id": thread_id,
+        "stage": "awaiting_email",
+        "cart_snapshot": serialize_cart(cart),
+    })
+
     envelope = {
         "type": "payments",
-        "message": "Say checkout to start payment.",
-        "data": None,
+        "message": "What's your email?",
+        "data": {"payment_id": str(payment["_id"])},
     }
 
     return {"messages": [AIMessage(content=json.dumps(envelope))]}

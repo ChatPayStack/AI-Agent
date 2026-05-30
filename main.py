@@ -15,7 +15,7 @@ from payments_store import update_payment_attempt, load_latest_payment
 
 from bson import ObjectId
 
-from orders_store import create_order
+from orders_store import create_order, ensure_orders_indexes
 
 from cart_store import load_cart, clear_cart, save_cart
 
@@ -119,6 +119,7 @@ async def main():
     print(f"[{WORKER_ID}] listening on chatpay_queue_{business_id}")
 
     connect_mongo()
+    await ensure_orders_indexes(business_id)
     await build_keyboard()
 
     try:
