@@ -166,7 +166,17 @@ async def route_intent(state: State) -> str:
 
     label = (resp.content or "").strip().lower()
     allowed = {"enquiry", "cart_add", "cart_remove", "cart_view", "cart_clear", "payments", "chitchat"}
-    return label if label in allowed else "chitchat"
+    final_label = label if label in allowed else "chitchat"
+    log_event({
+        "event": "router_intent",
+        "raw_label": label,
+        "final_label": final_label,
+        "fell_back": label not in allowed,
+        "business_id": state["business_id"],
+        "thread_id": state["thread_id"],
+        "turn_id": state["turn_id"],
+    })
+    return final_label
 
 async def select_assets(product: dict, question: str, llm) -> list[str]:
     assets = product.get("asset_ids") or []

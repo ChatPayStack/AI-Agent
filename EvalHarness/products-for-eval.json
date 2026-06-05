@@ -1,0 +1,103 @@
+
+[
+{
+  "_id": {
+    "$oid": "69cedcca64777fa88f39ecb2"
+  },
+  "upload_batch_id": "af1a147e-80d7-4fac-ace6-b1e2af92f758",
+  "business_id": "a72d085a-c944-4eeb-ad8f-8f9a7e864509",
+  "external_id": {
+    "$numberLong": "15086781661561"
+  },
+  "handle": "bundle-package",
+  "name": "Bundle Package",
+  "description": "<p data-start=\"131\" data-end=\"165\"><strong data-start=\"131\" data-end=\"163\">✨ The Ultimate Glow Bundle ✨</strong></p>\n<p data-start=\"167\" data-end=\"436\">Your complete skincare ritual, all in one. This <strong data-start=\"215\" data-end=\"225\">Bundle</strong> brings together three of our customer favorites — the <strong data-start=\"280\" data-end=\"305\">Facial Cleansing Foam</strong>, <strong data-start=\"307\" data-end=\"332\">Moisturizing Body Oil</strong>, and <strong data-start=\"338\" data-end=\"357\">Shimmer Dry Oil</strong> — designed to keep your skin fresh, nourished, and radiant from head to toe.</p>\n<p data-start=\"438\" data-end=\"832\">✔ <strong data-start=\"440\" data-end=\"478\">Facial Cleansing Foam (with Brush)</strong> – Deep yet gentle daily cleanse with a soft built-in brush for a smooth, refreshed complexion.<br data-start=\"573\" data-end=\"576\">✔ <strong data-start=\"578\" data-end=\"603\">Moisturizing Body Oil</strong> – A luxurious blend of nourishing oils that hydrates deeply while leaving your skin silky-soft and glowing.<br data-start=\"711\" data-end=\"714\">✔ <strong data-start=\"716\" data-end=\"735\">Shimmer Dry Oil</strong> – Lightweight, fast-absorbing shimmer oil for a luminous, golden glow without the greasy feel.</p>\n<p data-start=\"834\" data-end=\"957\">Perfect for everyday self-care or as a special treat, this bundle covers all your essentials: cleanse, hydrate, and glow.</p>\n<p data-start=\"959\" data-end=\"1135\">And the best part? The <strong data-start=\"982\" data-end=\"1013\">Bundle is always discounted</strong>, so you’ll save more compared to purchasing each product separately. The discount may change, but the value never will.</p>\n<p data-start=\"1137\" data-end=\"1193\">💫 <strong data-start=\"1140\" data-end=\"1191\">Three essentials. One bundle. Endless radiance.</strong></p>",
+  "price": 52,
+  "currency": null,
+  "images": [
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/IMG_4737.jpg?v=1758221984",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/DSC_0123_330ff4da-d0a6-47b9-b611-44995c0e25d7.jpg?v=1758221984",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/Combo.jpg?v=1758221984"
+  ],
+  "url": "https://amfacosmetics.com/products/bundle-package",
+  "available": true
+}
+,
+{
+  "_id": {
+    "$oid": "69cedcca64777fa88f39ecb3"
+  },
+  "upload_batch_id": "af1a147e-80d7-4fac-ace6-b1e2af92f758",
+  "business_id": "a72d085a-c944-4eeb-ad8f-8f9a7e864509",
+  "external_id": {
+    "$numberLong": "15033910690169"
+  },
+  "handle": "face-cleansing-foam-with-brush",
+  "name": "Face Cleansing Foam (with Brush)",
+  "description": "<p data-start=\"141\" data-end=\"698\"><meta charset=\"utf-8\"><meta charset=\"utf-8\"><meta charset=\"utf-8\"><b id=\"docs-internal-guid-70fc9e4d-7fff-99f6-ad8a-6b121832f20b\"><span>A soft, airy foam with a built-in cleansing brush that removes dirt and oil without stripping. Gentle on skin, it leaves your face fresh, balanced, and smooth—your daily spa moment at home.</span></b><br></p>",
+  "price": 15,
+  "currency": null,
+  "images": [
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/CLEANSINGPIC2.heic?v=1770625102",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/IMG_8840_cb94bb62-6bce-4244-a75b-52b763ddbc57.png?v=1770625102",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/IMG_8837.png?v=1770625102",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/IMG_8835.png?v=1770625102",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/IMG_8839.png?v=1770625102",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/FCF1.jpg?v=1770625102",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/FCF_2.jpg?v=1770623639"
+  ],
+  "url": "https://amfacosmetics.com/products/face-cleansing-foam-with-brush",
+  "available": true
+}
+,
+{
+  "_id": {
+    "$oid": "69cedcca64777fa88f39ecb4"
+  },
+  "upload_batch_id": "af1a147e-80d7-4fac-ace6-b1e2af92f758",
+  "business_id": "a72d085a-c944-4eeb-ad8f-8f9a7e864509",
+  "external_id": {
+    "$numberLong": "15033910657401"
+  },
+  "handle": "body-oil",
+  "name": "Moisturising Body Oil",
+  "description": "<p data-start=\"79\" data-end=\"585\">A lightweight, fast-absorbing body oil that delivers deep hydration and long-lasting nourishment. Enriched with premium botanical oils, it leaves skin soft, silky, and naturally radiant — perfect for daily use on all skin types.<strong data-start=\"587\" data-end=\"609\"></strong></p>",
+  "price": 20,
+  "currency": null,
+  "images": [
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/BODY_OIL_PIC_1.heic?v=1769354716",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/IMG_8213.png?v=1769354716",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/MDO_Photo_2.jpg?v=1769354716",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/Gemini_Generated_Image_y41mpiy41mpiy41m_1.png?v=1769354716",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/IMG_8211.png?v=1769354716",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/MDO_1_1.jpg?v=1769354716"
+  ],
+  "url": "https://amfacosmetics.com/products/body-oil",
+  "available": true
+}
+,
+{
+  "_id": {
+    "$oid": "69cedcca64777fa88f39ecb5"
+  },
+  "upload_batch_id": "af1a147e-80d7-4fac-ace6-b1e2af92f758",
+  "business_id": "a72d085a-c944-4eeb-ad8f-8f9a7e864509",
+  "external_id": {
+    "$numberLong": "15033910395257"
+  },
+  "handle": "shimmer-dry-oil",
+  "name": "Shimmer Dry Oil",
+  "description": "<p data-end=\"515\" data-start=\"103\"><br data-end=\"121\" data-start=\"118\"><meta charset=\"utf-8\">A weightless, non-greasy dry oil that nourishes deeply while leaving your skin glowing with a soft, golden shimmer. Absorbs instantly for a smooth, hydrated, goddess-like radiance—anytime, anywhere.<br></p>",
+  "price": 25,
+  "currency": null,
+  "images": [
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/SHIMMER_OIL_PIC_1.heic?v=1770662683",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/Shimmer_Dry_oil_AJ.jpg?v=1770662683",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/unnamed.jpg?v=1770662683",
+    "https://cdn.shopify.com/s/files/1/0920/2466/8537/files/Screenshot_2025-12-01_at_10.22.38_PM.png?v=1770662683"
+  ],
+  "url": "https://amfacosmetics.com/products/shimmer-dry-oil",
+  "available": true
+}
+
+]

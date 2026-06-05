@@ -1,0 +1,11 @@
+query,expected,raw_label,final_label,raw_correct,final_correct,fell_back
+do you have shimmer oil,enquiry,enquiry,enquiry,Y,Y,N
+what's the price of the bundle,enquiry,enquiry,enquiry,Y,Y,N
+tell me about Amfa Cosmetics,enquiry,enquiry,enquiry,Y,Y,N
+add the shimmer oil to my cart,cart_add,cart_add,cart_add,Y,Y,N
+remove the body oil,cart_remove,cart_remove,cart_remove,Y,Y,N
+whats in my cart,cart_view,cart_view,cart_view,Y,Y,N
+I want to checkout,payments,payments,payments,Y,Y,N
+how do I pay,payments,payments,payments,Y,Y,N
+hi,chitchat,chitchat,chitchat,Y,Y,N
+thanks,chitchat,chitchat,chitchat,Y,Y,N

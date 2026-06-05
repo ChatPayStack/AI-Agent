@@ -1,0 +1,26 @@
+query,expected,top3_returned,hit@1,hit@3
+Shimmer Dry Oil,shimmer-dry-oil,"shimmer-dry-oil, body-oil, bundle-package",Y,Y
+face cleansing foam,face-cleansing-foam-with-brush,"face-cleansing-foam-with-brush, bundle-package, body-oil",Y,Y
+bundle package,bundle-package,"bundle-package, face-cleansing-foam-with-brush, body-oil",Y,Y
+moisturising body oil,body-oil,"body-oil, shimmer-dry-oil, bundle-package",Y,Y
+mositurising oil,body-oil,"body-oil, shimmer-dry-oil, face-cleansing-foam-with-brush",Y,Y
+oils,"[""body-oil"", ""shimmer-dry-oil""]","body-oil, shimmer-dry-oil, bundle-package",Y,Y
+dry oil,shimmer-dry-oil,"shimmer-dry-oil, body-oil, face-cleansing-foam-with-brush",Y,Y
+shimmer oil,shimmer-dry-oil,"shimmer-dry-oil, body-oil, bundle-package",Y,Y
+shimmer one,shimmer-dry-oil,"shimmer-dry-oil, bundle-package, body-oil",Y,Y
+face wash,face-cleansing-foam-with-brush,"face-cleansing-foam-with-brush, bundle-package, body-oil",Y,Y
+any deals,bundle-package,bundle-package,Y,Y
+Tell me about your products,all,"bundle-package, face-cleansing-foam-with-brush, body-oil",Y,Y
+Tell me about Amfa Cosmetics,all,"face-cleansing-foam-with-brush, bundle-package, body-oil",Y,Y
+something for dry skin,body-oil,"shimmer-dry-oil, body-oil, bundle-package",N,Y
+something with a brush,face-cleansing-foam-with-brush,"face-cleansing-foam-with-brush, bundle-package, shimmer-dry-oil",Y,Y
+difference between the oils,"[""body-oil"", ""shimmer-dry-oil""]","body-oil, shimmer-dry-oil, bundle-package",Y,Y
+Make a s skin care routine,bundle-package,"bundle-package, face-cleansing-foam-with-brush, body-oil",Y,Y
+do you sell shampoo,NONE,"face-cleansing-foam-with-brush, shimmer-dry-oil, bundle-package",Y,Y
+any moisturiser for face,NONE,"body-oil, bundle-package, face-cleansing-foam-with-brush",N,N
+anything for hair,NONE,"shimmer-dry-oil, bundle-package, body-oil",Y,Y
+do you ship to Germany,NONE,(none),Y,Y
+shimer oil,shimmer-dry-oil,"shimmer-dry-oil, body-oil, bundle-package",Y,Y
+body oill,body-oil,"body-oil, shimmer-dry-oil, bundle-package",Y,Y
+cleansr,face-cleansing-foam-with-brush,"face-cleansing-foam-with-brush, bundle-package, shimmer-dry-oil",Y,Y
+Can you recommend a gift,bundle-package,"bundle-package, body-oil, face-cleansing-foam-with-brush",Y,Y
